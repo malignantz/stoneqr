@@ -28,6 +28,23 @@ export interface HalftoneOptions {
 	grayscale?: boolean;
 	/** Contrast multiplier around mid-grey, 0.5..2. Default 1. */
 	contrast?: number;
+	/**
+	 * Picture zoom relative to cover-fit: 1 fills the data area, 2 shows the middle half, below 1
+	 * shrinks the picture and leaves the light colour around it. 0.5..3. Default 1.
+	 */
+	imageZoom?: number;
+	/** Shift the picture sideways, as a fraction of the data area (-0.5..0.5, positive is right). Default 0. */
+	imageOffsetX?: number;
+	/** Shift the picture up or down, as a fraction of the data area (-0.5..0.5, positive is down). Default 0. */
+	imageOffsetY?: number;
+}
+
+/** Where the picture lands inside the data area, in whatever unit `area` is (pixels or modules). */
+export interface ImagePlacement {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
 }
 
 export interface HalftoneResult {
@@ -45,6 +62,9 @@ export interface HalftoneResult {
 
 export const DOT_SCALE_MIN = 0.25;
 export const DOT_SCALE_MAX = 0.7;
+export const IMAGE_ZOOM_MIN = 0.5;
+export const IMAGE_ZOOM_MAX = 3;
+export const IMAGE_OFFSET_MAX = 0.5;
 /** Default module budget for an image-bearing symbol: version 7 is 45×45 = 2025 modules (plan §7 step 1). */
 export const HALFTONE_MIN_MODULES = 2025;
 
@@ -64,9 +84,41 @@ function sq(n: number): number {
 }
 
 /**
- * Render the symbol over the image. Output is RGBA, `(size + 2 * quietZone) * pxPerModule` per side.
+ * Cover-fit the picture into a square data area of side `area`, then apply zoom and offset.
+ * Shared by the raster renderer (area in pixels) and the SVG export (area in modules) so the
+ * vector file shows exactly the crop that was verified.
  */
-export function renderHalftone(qr: EncodedQr, image: RasterImage, opts: HalftoneOptions = {}): RasterImage {
+export function imagePlacement(
+	imageWidth: number,
+	imageHeight: number,
+	area: number,
+	opts: Pick<HalftoneOptions, 'imageZoom' | 'imageOffsetX' | 'imageOffsetY'> = {}
+): ImagePlacement {
+	const zoom = clamp(opts.imageZoom ?? 1, IMAGE_ZOOM_MIN, IMAGE_ZOOM_MAX);
+	const dx = clamp(opts.imageOffsetX ?? 0, -IMAGE_OFFSET_MAX, IMAGE_OFFSET_MAX);
+	const dy = clamp(opts.imageOffsetY ?? 0, -IMAGE_OFFSET_MAX, IMAGE_OFFSET_MAX);
+	if (!(imageWidth > 0) || !(imageHeight > 0) || !(area > 0)) return { x: 0, y: 0, width: 0, height: 0 };
+	const scale = Math.max(area / imageWidth, area / imageHeight) * zoom;
+	const width = imageWidth * scale;
+	const height = imageHeight * scale;
+	return {
+		x: (area - width) / 2 + dx * area,
+		y: (area - height) / 2 + dy * area,
+		width,
+		height
+	};
+}
+
+/**
+ * Render the symbol over the image. Output is RGBA, `(size + 2 * quietZone) * pxPerModule` per side.
+ * `onProgress` is called with 0..1 as rows complete, so a worker can report on long renders.
+ */
+export function renderHalftone(
+	qr: Pick<EncodedQr, 'matrix' | 'functionMask' | 'size'>,
+	image: RasterImage,
+	opts: HalftoneOptions = {},
+	onProgress?: (fraction: number) => void
+): RasterImage {
 	const o = withDefaults(opts);
 	const px = o.pxPerModule;
 	const quiet = o.quietZone;
@@ -74,37 +126,107 @@ export function renderHalftone(qr: EncodedQr, image: RasterImage, opts: Halftone
 	const total = size + 2 * quiet;
 	const side = total * px;
 	const data = new Uint8ClampedArray(side * side * 4);
+	const [lr, lg, lb] = o.light;
 
 	// 1. Light everywhere, so the quiet zone is clean whatever the image does.
-	for (let i = 0; i < side * side; i++) {
-		const p = i * 4;
-		data[p] = o.light[0];
-		data[p + 1] = o.light[1];
-		data[p + 2] = o.light[2];
+	//    Write one row, then copy it down: far cheaper than touching every pixel in a loop.
+	const rowBytes = side * 4;
+	for (let x = 0; x < side; x++) {
+		const p = x * 4;
+		data[p] = lr;
+		data[p + 1] = lg;
+		data[p + 2] = lb;
 		data[p + 3] = 255;
 	}
+	for (let y = 1; y < side; y++) data.copyWithin(y * rowBytes, 0, rowBytes);
 
-	// 2. Cover-fit the image into the data area only (inside the quiet zone).
+	// 2. Cover-fit the image into the data area only (inside the quiet zone), then zoom and shift.
+	//    Anything the picture no longer covers stays the light colour.
+	//    Separable bilinear resample: the source is composited and colour-adjusted once, each
+	//    source row is resampled horizontally once (two-row rolling cache, since output rows walk
+	//    the source monotonically), and every output pixel is then one vertical blend per channel.
 	const areaPx = size * px;
 	const origin = quiet * px;
 	if (areaPx > 0 && image.width > 0 && image.height > 0) {
-		const channels = image.data.length >= image.width * image.height * 4 ? 4 : 3;
-		const scale = Math.max(areaPx / image.width, areaPx / image.height);
-		const offX = (areaPx - image.width * scale) / 2;
-		const offY = (areaPx - image.height * scale) / 2;
-		const rgb: [number, number, number] = [0, 0, 0];
+		const iw = image.width;
+		const ih = image.height;
+		const src = prepareSource(image, o);
+		const place = imagePlacement(iw, ih, areaPx, o);
+		const inv = iw / place.width;
+		const eps = 1e-6;
+		const maxX = iw - 0.5 + eps;
+		const maxY = ih - 0.5 + eps;
+
+		// Columns covered by the picture form one interval; per column, the two source columns and blend.
+		const colX0 = new Int32Array(areaPx);
+		const colX1 = new Int32Array(areaPx);
+		const colFx = new Float32Array(areaPx);
+		let firstCol = areaPx;
+		let lastCol = -1;
+		for (let x = 0; x < areaPx; x++) {
+			const sx = (x + 0.5 - place.x) * inv - 0.5;
+			if (sx < -0.5 - eps || sx > maxX) continue;
+			const x0 = Math.floor(sx);
+			colX0[x] = (x0 < 0 ? 0 : x0 >= iw ? iw - 1 : x0) * 3;
+			const x1 = x0 + 1;
+			colX1[x] = (x1 < 0 ? 0 : x1 >= iw ? iw - 1 : x1) * 3;
+			colFx[x] = sx - x0;
+			if (x < firstCol) firstCol = x;
+			lastCol = x;
+		}
+
+		let rowA = new Float32Array(areaPx * 3);
+		let rowB = new Float32Array(areaPx * 3);
+		let cachedA = -1;
+		let cachedB = -1;
+		const hresample = (srcRow: number, out: Float32Array): void => {
+			const base = srcRow * iw * 3;
+			for (let x = firstCol; x <= lastCol; x++) {
+				const fx = colFx[x]!;
+				const i0 = base + colX0[x]!;
+				const i1 = base + colX1[x]!;
+				const o3 = x * 3;
+				out[o3] = src[i0]! + (src[i1]! - src[i0]!) * fx;
+				out[o3 + 1] = src[i0 + 1]! + (src[i1 + 1]! - src[i0 + 1]!) * fx;
+				out[o3 + 2] = src[i0 + 2]! + (src[i1 + 2]! - src[i0 + 2]!) * fx;
+			}
+		};
+
+		const progressEvery = Math.max(1, Math.floor(areaPx / 50));
 		for (let y = 0; y < areaPx; y++) {
-			const sy = (y + 0.5 - offY) / scale - 0.5;
+			if (onProgress && y % progressEvery === 0) onProgress(y / areaPx);
+			const sy = (y + 0.5 - place.y) * inv - 0.5;
+			if (sy < -0.5 - eps || sy > maxY) continue;
+			const y0 = Math.floor(sy);
+			const fy = sy - y0;
+			const y0c = y0 < 0 ? 0 : y0 >= ih ? ih - 1 : y0;
+			const y1 = y0 + 1;
+			const y1c = y1 < 0 ? 0 : y1 >= ih ? ih - 1 : y1;
+			if (cachedA !== y0c) {
+				if (cachedB === y0c) {
+					const t = rowA;
+					rowA = rowB;
+					rowB = t;
+					cachedB = cachedA;
+				} else {
+					hresample(y0c, rowA);
+				}
+				cachedA = y0c;
+			}
+			if (cachedB !== y1c) {
+				hresample(y1c, rowB);
+				cachedB = y1c;
+			}
 			const rowBase = ((y + origin) * side + origin) * 4;
-			for (let x = 0; x < areaPx; x++) {
-				const sx = (x + 0.5 - offX) / scale - 0.5;
-				sampleBilinear(image, channels, sx, sy, o.light, rgb);
-				adjust(rgb, o);
+			const a = rowA;
+			const b = rowB;
+			for (let x = firstCol; x <= lastCol; x++) {
+				const i = x * 3;
 				const p = rowBase + x * 4;
-				data[p] = rgb[0];
-				data[p + 1] = rgb[1];
-				data[p + 2] = rgb[2];
-				data[p + 3] = 255;
+				// Uint8ClampedArray clamps and rounds on store.
+				data[p] = a[i]! + (b[i]! - a[i]!) * fy;
+				data[p + 1] = a[i + 1]! + (b[i + 1]! - a[i + 1]!) * fy;
+				data[p + 2] = a[i + 2]! + (b[i + 2]! - a[i + 2]!) * fy;
 			}
 		}
 	}
@@ -125,6 +247,7 @@ export function renderHalftone(qr: EncodedQr, image: RasterImage, opts: Halftone
 		}
 	}
 
+	onProgress?.(1);
 	return { width: side, height: side, data };
 }
 
@@ -134,7 +257,7 @@ export function renderHalftone(qr: EncodedQr, image: RasterImage, opts: Halftone
  * so the UI can still show something and explain what to change.
  */
 export function halftoneWithFallback(
-	qr: EncodedQr,
+	qr: Pick<EncodedQr, 'matrix' | 'functionMask' | 'size'>,
 	image: RasterImage,
 	expectedPayload: string,
 	opts: HalftoneOptions = {}
@@ -195,58 +318,63 @@ function withDefaults(o: HalftoneOptions): Resolved {
 		light: o.light ?? [255, 255, 255],
 		imageDim: clamp(o.imageDim ?? 0, 0, 1),
 		grayscale: o.grayscale ?? false,
-		contrast: clamp(o.contrast ?? 1, 0.5, 2)
+		contrast: clamp(o.contrast ?? 1, 0.5, 2),
+		imageZoom: clamp(o.imageZoom ?? 1, IMAGE_ZOOM_MIN, IMAGE_ZOOM_MAX),
+		imageOffsetX: clamp(o.imageOffsetX ?? 0, -IMAGE_OFFSET_MAX, IMAGE_OFFSET_MAX),
+		imageOffsetY: clamp(o.imageOffsetY ?? 0, -IMAGE_OFFSET_MAX, IMAGE_OFFSET_MAX)
 	};
 }
 
-/** Grayscale, then contrast around mid-grey, then fade toward the light colour. In place. */
-function adjust(rgb: [number, number, number], o: Resolved): void {
-	if (o.grayscale) {
-		const l = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
-		rgb[0] = l;
-		rgb[1] = l;
-		rgb[2] = l;
+/**
+ * The source as 8-bit RGB with alpha composited over the light colour and the greyscale,
+ * contrast, and fade applied. Done once per render so the resample loops stay tight.
+ * Contrast and fade are affine, so applying them before interpolation is the same as after,
+ * up to clamping at the extremes.
+ */
+function prepareSource(image: RasterImage, o: Resolved): Uint8ClampedArray {
+	const n = image.width * image.height;
+	const channels = image.data.length >= n * 4 ? 4 : 3;
+	const out = new Uint8ClampedArray(n * 3);
+	const [lr, lg, lb] = o.light;
+	const gray = o.grayscale;
+	const contrast = o.contrast;
+	const dim = o.imageDim;
+	const src = image.data;
+	for (let i = 0; i < n; i++) {
+		const p = i * channels;
+		let r = src[p] ?? 0;
+		let g = src[p + 1] ?? 0;
+		let b = src[p + 2] ?? 0;
+		if (channels === 4) {
+			const a = (src[p + 3] ?? 255) / 255;
+			if (a < 1) {
+				r = r * a + lr * (1 - a);
+				g = g * a + lg * (1 - a);
+				b = b * a + lb * (1 - a);
+			}
+		}
+		if (gray) {
+			const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+			r = l;
+			g = l;
+			b = l;
+		}
+		if (contrast !== 1) {
+			r = (r - 128) * contrast + 128;
+			g = (g - 128) * contrast + 128;
+			b = (b - 128) * contrast + 128;
+		}
+		if (dim > 0) {
+			r += (lr - r) * dim;
+			g += (lg - g) * dim;
+			b += (lb - b) * dim;
+		}
+		const q = i * 3;
+		out[q] = r;
+		out[q + 1] = g;
+		out[q + 2] = b;
 	}
-	for (let i = 0; i < 3; i++) {
-		let v = rgb[i]!;
-		if (o.contrast !== 1) v = (v - 128) * o.contrast + 128;
-		if (o.imageDim > 0) v = v + (o.light[i]! - v) * o.imageDim;
-		rgb[i] = v < 0 ? 0 : v > 255 ? 255 : v;
-	}
-}
-
-function sampleBilinear(
-	img: RasterImage,
-	channels: number,
-	sx: number,
-	sy: number,
-	light: [number, number, number],
-	out: [number, number, number]
-): void {
-	const x0 = Math.floor(sx);
-	const y0 = Math.floor(sy);
-	const fx = sx - x0;
-	const fy = sy - y0;
-	out[0] = 0;
-	out[1] = 0;
-	out[2] = 0;
-	const corners: [number, number, number][] = [
-		[x0, y0, (1 - fx) * (1 - fy)],
-		[x0 + 1, y0, fx * (1 - fy)],
-		[x0, y0 + 1, (1 - fx) * fy],
-		[x0 + 1, y0 + 1, fx * fy]
-	];
-	for (const [cx, cy, w] of corners) {
-		if (w === 0) continue;
-		const px = clampInt(cx, 0, img.width - 1);
-		const py = clampInt(cy, 0, img.height - 1);
-		const p = (py * img.width + px) * channels;
-		const a = channels === 4 ? (img.data[p + 3] ?? 255) / 255 : 1;
-		// Composite over the light colour so transparent uploads do not punch holes.
-		out[0] += ((img.data[p] ?? 0) * a + light[0] * (1 - a)) * w;
-		out[1] += ((img.data[p + 1] ?? 0) * a + light[1] * (1 - a)) * w;
-		out[2] += ((img.data[p + 2] ?? 0) * a + light[2] * (1 - a)) * w;
-	}
+	return out;
 }
 
 function fillRect(

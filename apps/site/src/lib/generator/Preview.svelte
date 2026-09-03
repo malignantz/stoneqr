@@ -43,7 +43,10 @@
 			dotScale: design.halftoneDotScale,
 			imageDim: design.halftoneDim,
 			grayscale: design.halftoneGrayscale,
-			contrast: design.halftoneContrast
+			contrast: design.halftoneContrast,
+			imageZoom: design.halftoneZoom,
+			imageOffsetX: design.halftoneOffsetX,
+			imageOffsetY: design.halftoneOffsetY
 		};
 		design.verify = 'checking';
 		halftoneBusy = true;
@@ -127,6 +130,7 @@
 			try {
 				const r = await renderStyled(opts, widthMm);
 				if (seq !== styledSeq) return;
+				design.styledScale = r.scale;
 				design.styledSvg = r.svg;
 				design.styledError = '';
 			} catch (e) {
@@ -161,7 +165,8 @@
 					const img = rasterize(qr, { pxPerModule: px, quietZone: design.quietZone, fg: hexToRgb(fg), bg: bg === 'transparent' ? [255, 255, 255] : hexToRgb(bg) });
 					ok = (await verifyRasterAsync(img, payload)).ok;
 				} else {
-					const side = (qr.size + 2 * design.quietZone) * 8;
+					// Keep 8 px per module for the code itself; a frame makes the artwork wider.
+					const side = Math.round((qr.size + 2 * design.quietZone) * 8 * design.styledScale);
 					const canvas = await svgToCanvas(styledSvg, side, bg === 'transparent' ? '#ffffff' : undefined);
 					const data = canvasImageData(canvas);
 					ok = (await verifyRasterAsync(data, payload)).ok;
@@ -208,7 +213,7 @@
 	</div>
 
 	<div
-		class="sheet relative mx-auto grid aspect-square w-full max-w-[min(100%,60vw)] place-items-center overflow-hidden p-4 lg:max-w-none"
+		class="sheet relative mx-auto grid aspect-square w-full max-w-[min(100%,60vw)] grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] place-items-center overflow-hidden p-4 lg:max-w-none"
 		style="background: {design.transparentBg ? 'repeating-conic-gradient(#e6e1d6 0 25%, #f4f0e8 0 50%) 0 0 / 16px 16px' : design.bg}"
 		role="img"
 		aria-label="QR code preview encoding a {describe(design.type)}"
@@ -225,7 +230,7 @@
 		{:else if design.halftoneActive && design.encoded}
 			<p class="text-ink-3">Blending the picture…</p>
 		{:else if svg}
-			<div class="qr-host h-full w-full [&>svg]:h-full [&>svg]:w-full">{@html svg}</div>
+			<div class="qr-host h-full min-h-0 w-full min-w-0 [&>svg]:h-full [&>svg]:w-full">{@html svg}</div>
 		{:else if design.isEmpty}
 			<div class="grid place-items-center text-center text-ink-3">
 				<svg width="120" height="120" viewBox="0 0 21 21" aria-hidden="true" class="opacity-25">

@@ -3,6 +3,7 @@ import {
 	encode,
 	halftoneVersionFor,
 	halftoneWithFallback,
+	imagePlacement,
 	renderHalftone,
 	sizeForVersion,
 	verifyRaster,
@@ -203,6 +204,94 @@ describe('renderHalftone', () => {
 		const c = pixel(r, 4 * 8 + 12 * 8, 4 * 8 + 12 * 8);
 		expect(isBlack(c)).toBe(false);
 		expect(isWhite(c)).toBe(false);
+	});
+});
+
+describe('imagePlacement', () => {
+	it('cover-fits by default and grows from the centre with zoom', () => {
+		// Landscape picture into a 100-unit square: height-limited, width overflows.
+		const p1 = imagePlacement(320, 240, 100);
+		expect(p1.height).toBeCloseTo(100);
+		expect(p1.width).toBeCloseTo(400 / 3);
+		expect(p1.y).toBeCloseTo(0);
+		expect(p1.x).toBeCloseTo((100 - 400 / 3) / 2);
+		const p2 = imagePlacement(320, 240, 100, { imageZoom: 2 });
+		expect(p2.width).toBeCloseTo(p1.width * 2);
+		expect(p2.x + p2.width / 2).toBeCloseTo(50); // still centred
+	});
+	it('shifts by a fraction of the area and clamps every input', () => {
+		const p = imagePlacement(100, 100, 100, { imageOffsetX: 0.25, imageOffsetY: -0.25 });
+		expect(p.x).toBeCloseTo(25);
+		expect(p.y).toBeCloseTo(-25);
+		const c = imagePlacement(100, 100, 100, { imageZoom: 10, imageOffsetX: 5, imageOffsetY: -5 });
+		expect(c.width).toBeCloseTo(300);
+		expect(c.x).toBeCloseTo((100 - 300) / 2 + 50);
+		expect(c.y).toBeCloseTo((100 - 300) / 2 - 50);
+	});
+	it('returns an empty box for a picture with no pixels', () => {
+		expect(imagePlacement(0, 10, 100)).toEqual({ x: 0, y: 0, width: 0, height: 0 });
+	});
+});
+
+describe('renderHalftone zoom and position', () => {
+	const qr = halftoneQr();
+	const px = 8;
+	const quiet = 4;
+	/** Top-left pixel of the first data module in column 0: picture, not dot, not function pattern. */
+	function leftEdge(r: RasterImage): [number, number, number] {
+		for (let my = 9; my < qr.size - 9; my++) {
+			if (qr.functionMask[my]![0] === true) continue;
+			return pixel(r, quiet * px, (my + quiet) * px);
+		}
+		throw new Error('no data module in column 0');
+	}
+	function rightEdge(r: RasterImage): [number, number, number] {
+		for (let my = 9; my < qr.size - 9; my++) {
+			if (qr.functionMask[my]![qr.size - 1] === true) continue;
+			return pixel(r, (qr.size + quiet) * px - 1, (my + quiet) * px);
+		}
+		throw new Error('no data module in the last column');
+	}
+
+	it('zooming in samples nearer the middle of the picture', () => {
+		// The gradient's red channel rises left to right, so the left edge gets redder as we zoom.
+		const z1 = leftEdge(renderHalftone(qr, gradient(), { pxPerModule: px, quietZone: quiet }));
+		const z2 = leftEdge(renderHalftone(qr, gradient(), { pxPerModule: px, quietZone: quiet, imageZoom: 2 }));
+		expect(z2[0]).toBeGreaterThan(z1[0] + 20);
+	});
+
+	it('zooming out leaves the light colour around the picture', () => {
+		const full = renderHalftone(qr, checker(), { pxPerModule: px, quietZone: quiet });
+		const small = renderHalftone(qr, checker(), { pxPerModule: px, quietZone: quiet, imageZoom: 0.5 });
+		expect(isWhite(leftEdge(full))).toBe(false);
+		expect(isWhite(leftEdge(small))).toBe(true);
+		// The middle of the data area still shows the picture.
+		const mid = (quiet + qr.size / 2) * px;
+		expect(isWhite(pixel(small, Math.floor(mid) + 1, Math.floor(mid) + 1))).toBe(false);
+	});
+
+	it('shifting the picture uncovers the side it moved away from', () => {
+		const shifted = renderHalftone(qr, gradient(), { pxPerModule: px, quietZone: quiet, imageOffsetX: 0.3 });
+		expect(isWhite(leftEdge(shifted))).toBe(true);
+		expect(isWhite(rightEdge(shifted))).toBe(false);
+		const centred = renderHalftone(qr, gradient(), { pxPerModule: px, quietZone: quiet });
+		expect(isWhite(leftEdge(centred))).toBe(false);
+		expect(isWhite(rightEdge(centred))).toBe(false);
+	});
+
+	it('still decodes when zoomed and shifted, and the ladder keeps the crop', () => {
+		const r = halftoneWithFallback(qr, gradient(), PAYLOAD, { imageZoom: 2.5, imageOffsetX: -0.2, imageOffsetY: 0.1 });
+		expect(r.ok).toBe(true);
+		expect(r.opts.imageZoom).toBe(2.5);
+		expect(r.opts.imageOffsetX).toBe(-0.2);
+		expect(r.opts.imageOffsetY).toBe(0.1);
+	});
+
+	it('clamps zoom and offsets in the resolved options', () => {
+		const r = halftoneWithFallback(qr, gradient(), PAYLOAD, { imageZoom: 10, imageOffsetX: 5, imageOffsetY: -5 });
+		expect(r.opts.imageZoom).toBe(3);
+		expect(r.opts.imageOffsetX).toBe(0.5);
+		expect(r.opts.imageOffsetY).toBe(-0.5);
 	});
 });
 

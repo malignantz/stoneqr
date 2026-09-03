@@ -124,6 +124,10 @@ export class Design {
 	halftoneDim = $state(0);
 	halftoneGrayscale = $state(false);
 	halftoneContrast = $state(1);
+	/** Picture zoom relative to cover-fit (1 fills the data area) and its position as a fraction of the area. */
+	halftoneZoom = $state(1);
+	halftoneOffsetX = $state(0);
+	halftoneOffsetY = $state(0);
 	/** The verified raster from the preview, reused by the export panel. */
 	halftoneRaster = $state<RasterImage | null>(null);
 	/** The option set that actually decoded, so exports re-render with the same settings. */
@@ -156,6 +160,25 @@ export class Design {
 	styled = $derived(!this.halftoneActive && this.styleRequested);
 	/** Halftone is on and would silently drop style choices; the panel says so. */
 	halftoneOverridesStyle = $derived(this.halftoneActive && this.styleRequested);
+
+	/**
+	 * Settings only the Advanced controls expose, in plain words, so Basic mode can say they are
+	 * still in force rather than silently applying them.
+	 */
+	advancedInUse = $derived.by((): string[] => {
+		const out: string[] = [];
+		if (this.halftoneActive) out.push('halftone picture');
+		if (this.transparentBg) out.push('transparent background');
+		if (this.cornerSquare !== 'square' || this.cornerDot !== 'square') out.push('corner shapes');
+		if (this.gradient !== 'none') out.push('gradient');
+		if (this.scanDistanceM) out.push('scan distance');
+		if (this.eccChoice !== 'M' && !this.logo && !this.halftoneActive) out.push(`error correction ${this.eccChoice}`);
+		if (this.quietZone !== 4) out.push('quiet zone');
+		if (this.minVersion !== 1) out.push('minimum version');
+		if (this.mask !== 'auto') out.push('mask pattern');
+		if (this.dpi !== 300) out.push('PNG resolution');
+		return out;
+	});
 
 	payloadResult = $derived.by(() => buildPayload(this.type, this.fields, this.shortUrl));
 	payload = $derived(this.payloadResult.payload);
@@ -237,6 +260,8 @@ export class Design {
 	/** Rendered styled SVG, kept here so the export panel can reuse the preview's render. */
 	styledSvg = $state('');
 	styledError = $state('');
+	/** Artwork width over code width for the styled render: 1 without a frame. */
+	styledScale = $state(1);
 
 	reset(type: PayloadType) {
 		this.type = type;

@@ -86,7 +86,7 @@ Everything is a static site. The only network calls are loading the page and, in
 Browser
   ├─ apps/site (SvelteKit, adapter-static, prerendered routes)
   │    ├─ generator UI (Svelte 5 runes, no global store beyond a single design state object)
-  │    ├─ Web Worker for bulk generation and halftone verification
+  │    ├─ Web Workers for bulk generation and halftone PNG export (render + encode, with progress)
   │    └─ lazy chunks: styled renderer, halftone renderer, PDF/EPS exporters, bulk/labels
   └─ packages/engine (@stoneqr/engine, pure TypeScript, no DOM dependency except in the canvas renderers)
        ├─ encode()      wraps the QR encoder; returns matrix + version + ecc + function-pattern mask
@@ -107,7 +107,7 @@ Hosting: Cloudflare Workers static assets (free, unlimited requests) on stoneqr.
 |---|---|---|
 | Encoder | `uqr` (Nayuki port, ~4 KB, exposes the matrix, ECC/version/mask controls, runs anywhere) | Small, correct, no DOM. Alternative: `@paulmillr/qr`, which also decodes. |
 | Decoder for verification | `@paulmillr/qr` decode, fallback `jsQR` | Verify every download at two scales. |
-| Styled rendering | `@liquid-js/qr-code-styling` (maintained fork; SVG output; dot and corner styles, gradients, logo, BorderPlugin frames), browser only, lazy-loaded | The original `qr-code-styling` has had no release in over a year. It re-encodes internally, so pass the same ECC and version and read the module count from its output for the sizing math. |
+| Styled rendering | `@liquid-js/qr-code-styling` (maintained fork; SVG output; dot and corner styles, gradients, logo), browser only, lazy-loaded. The CTA frame is our own SVG wrapper around the library's output: its BorderPlugin draws a stroke ring with text on a path and sizes the text as the whole code in proportional mode, which is not a label band. | The original `qr-code-styling` has had no release in over a year. It re-encodes internally, so pass the same ECC and version and read the module count from its output for the sizing math. |
 | Halftone | Own renderer over the `uqr` matrix (~150 lines) | No maintained JS library does segno-style halftone. |
 | PDF | `pdf-lib` (stable, supports CMYK fills) | jsPDF is the alternative; pdf-lib's API is cleaner for rect drawing. |
 | EPS | Hand-written PostScript (~40 lines) | No dependency. |
@@ -186,11 +186,11 @@ Copy examples the panel should produce:
 
 1. Encode at ECC H. Raise `minVersion` so the symbol has at least about 1,000 modules (version 7 or higher) when an image is present, so the picture reads.
 2. Compute the function-pattern mask for that version.
-3. Draw the image, cover-fitted to the data area (inside the quiet zone), with optional greyscale and contrast stretch controls.
+3. Draw the image, cover-fitted to the data area (inside the quiet zone), with optional greyscale and contrast stretch controls, plus zoom (0.5× to 3×, 1× = cover-fit) and a position offset so a non-square picture can be cropped to the part that matters. The placement math is shared by the raster and the SVG export.
 4. Function-pattern cells: solid dark or light. Data cells: a centred dot at `dotScale` of the module width (default 0.4) in dark or light, leaving the image visible around it.
 5. Render at 8 px per module for verification.
 6. Verify with the decoder. On failure: try `dotScale` 0.5, then dim the image 20%, then tell the user which adjustment to make (bigger dots, lighter image, shorter content).
-7. Export as PNG (raster) and as a two-layer SVG (embedded image plus dot layer) for people who want to scale it.
+7. Export as PNG (raster, rendered and encoded in a Web Worker with a progress readout; capped at 4096 px per side since the source picture is at most 1024 px) and as a two-layer SVG (embedded image plus dot layer) for people who want to scale it. The renderer is a separable bilinear resample with the source composited and colour-adjusted once, so a 17-megapixel raster takes about 200 ms.
 
 Reference implementation for offline comparison: Python `segno` with `qrcode-artistic`, which uses the same "centre third of each module" idea.
 
@@ -230,6 +230,8 @@ All routes prerendered. Each SEO page carries a short, genuinely useful explaine
 ### UI notes
 
 - Desktop: three columns (content, live preview, style and export). Mobile: single column with a sticky preview.
+- Two control sets, Basic and Advanced, toggled above the generator and remembered in localStorage. Basic keeps content, colours, module shape, logo, frame, size presets, and the main downloads. Advanced adds halftone, transparency, corner shapes, gradients, scan distance, error correction and encoding, EPS, and the test sheet. A setting that is still in force but hidden by Basic is named in a one-line notice.
+- While a halftone picture is blended in, the Style panel is disabled and greyed out rather than silently ignored.
 - Preview re-encodes on every keystroke (sub-millisecond); verification runs debounced at 300 ms and shows a "Scannable" badge or a specific warning.
 - Export panel: physical size inputs, the sizing assessment, a "Print-safe" badge when module size is at least 0.5 mm and contrast passes, and the format buttons.
 - Persistent one-liner near the download buttons: "Generated on your device. Never expires. Nothing was uploaded."

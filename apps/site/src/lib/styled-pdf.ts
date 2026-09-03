@@ -7,27 +7,37 @@ import { svgToCanvas, canvasToPngBlob } from './svg-raster';
 
 const MM_TO_PT = 72 / 25.4;
 
+/** `widthMm` is the width of the whole artwork (frame included when there is one). */
 export async function styledPdf(svg: string, widthMm: number, opts: { marginMm?: number; title?: string; bg?: string } = {}): Promise<Uint8Array> {
 	const { PDFDocument } = await import('pdf-lib');
 	const margin = opts.marginMm ?? 5;
 	const px = Math.round((widthMm / 25.4) * 600); // 600 dpi raster keeps edges crisp in print
 	const canvas = await svgToCanvas(svg, px, opts.bg);
+	const ratio = canvas.height / canvas.width;
 	const png = new Uint8Array(await (await canvasToPngBlob(canvas)).arrayBuffer());
 	const doc = await PDFDocument.create();
 	doc.setTitle(opts.title ?? 'QR code');
 	doc.setProducer('StoneQR');
 	doc.setCreator('stoneqr.app');
-	const side = (widthMm + 2 * margin) * MM_TO_PT;
-	const page = doc.addPage([side, side]);
-	const img = await doc.embedPng(png);
 	const w = widthMm * MM_TO_PT;
-	page.drawImage(img, { x: margin * MM_TO_PT, y: margin * MM_TO_PT, width: w, height: w });
+	const h = w * ratio;
+	const page = doc.addPage([w + 2 * margin * MM_TO_PT, h + 2 * margin * MM_TO_PT]);
+	const img = await doc.embedPng(png);
+	page.drawImage(img, { x: margin * MM_TO_PT, y: margin * MM_TO_PT, width: w, height: h });
 	return doc.save();
 }
 
 export async function styledTestSheet(
 	svg: string,
-	opts: { sizesMm?: number[]; label?: string; pageSize?: 'A4' | 'Letter'; bg?: string; moduleCount: number }
+	opts: {
+		sizesMm?: number[];
+		label?: string;
+		pageSize?: 'A4' | 'Letter';
+		bg?: string;
+		moduleCount: number;
+		/** Artwork width over code width (a frame adds to it). Sizes stay code sizes; the frame is drawn around them. */
+		scale?: number;
+	}
 ): Promise<Uint8Array> {
 	const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
 	const sizes = opts.sizesMm ?? [15, 20, 30, 50];
@@ -39,7 +49,9 @@ export async function styledTestSheet(
 	const font = await doc.embedFont(StandardFonts.Helvetica);
 	const page = doc.addPage([pageW * MM_TO_PT, pageH * MM_TO_PT]);
 	const maxMm = Math.max(...sizes);
-	const canvas = await svgToCanvas(svg, Math.round((maxMm / 25.4) * 600), opts.bg);
+	const scale = opts.scale ?? 1;
+	const canvas = await svgToCanvas(svg, Math.round(((maxMm * scale) / 25.4) * 600), opts.bg);
+	const ratio = canvas.height / canvas.width;
 	const img = await doc.embedPng(new Uint8Array(await (await canvasToPngBlob(canvas)).arrayBuffer()));
 
 	const marginMm = 18;
@@ -53,17 +65,19 @@ export async function styledTestSheet(
 	y -= 8;
 	let x = marginMm;
 	const gap = 10;
-	const rowH = maxMm + 10;
+	const rowH = maxMm * scale * ratio + 10;
 	for (const s of sizes) {
-		if (x + s > pageW - marginMm) {
+		const dw = s * scale;
+		const dh = dw * ratio;
+		if (x + dw > pageW - marginMm) {
 			x = marginMm;
 			y -= rowH;
 		}
 		const top = y;
-		page.drawImage(img, { x: x * MM_TO_PT, y: (top - s) * MM_TO_PT, width: s * MM_TO_PT, height: s * MM_TO_PT });
+		page.drawImage(img, { x: x * MM_TO_PT, y: (top - dh) * MM_TO_PT, width: dw * MM_TO_PT, height: dh * MM_TO_PT });
 		const mod = s / opts.moduleCount;
-		page.drawText(`${s} mm · ${mod.toFixed(2)} mm modules`, { x: x * MM_TO_PT, y: (top - s - 5) * MM_TO_PT, size: 8, font, color: rgb(0.3, 0.3, 0.3) });
-		x += s + gap;
+		page.drawText(`${s} mm · ${mod.toFixed(2)} mm modules`, { x: x * MM_TO_PT, y: (top - dh - 5) * MM_TO_PT, size: 8, font, color: rgb(0.3, 0.3, 0.3) });
+		x += dw + gap;
 	}
 	page.drawText("Print at 100% scale (no 'fit to page'). Scan each with your phone before ordering signage.", {
 		x: marginMm * MM_TO_PT,

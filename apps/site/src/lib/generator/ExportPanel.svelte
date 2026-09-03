@@ -1,14 +1,16 @@
 <script lang="ts">
-	import { renderSvg, exportPng, exportEps, setPngDpi, fromMm, formatMm, minWidthMmForDistance, maxScanDistanceM, type Ecc, type LengthUnit } from '@stoneqr/engine';
+	import { exportPng, exportEps, setPngDpi, fromMm, formatMm, minWidthMmForDistance, maxScanDistanceM, type Ecc } from '@stoneqr/engine';
 	import { downloadText, downloadBytes, copyPngToClipboard, slug } from '$lib/download';
 	import { svgToCanvas, canvasToPngBlob } from '$lib/svg-raster';
 	import { SITE } from '$lib/site';
 	import { describe, type Design } from './state.svelte';
 
-	let { design }: { design: Design } = $props();
+	let { design, advanced = false }: { design: Design; advanced?: boolean } = $props();
 
 	const canExport = $derived(!!design.encoded && design.verify === 'ok' && !design.logoBlocked && design.status !== 'blocked');
 	const svgText = $derived(design.styled ? design.styledSvg : design.plainSvg);
+	/** Physical width of the styled artwork: the code width plus the frame when there is one. */
+	const artWidthMm = $derived(design.widthMm * (design.styled ? design.styledScale : 1));
 	const name = $derived(`stoneqr-${slug(design.type === 'url' ? design.fields.url.url : describe(design.type))}`);
 	const badgeClass = $derived(
 		design.status === 'print-safe' ? 'badge-ok' : design.status === 'scannable' ? 'badge-muted' : design.status === 'risky' ? 'badge-warn' : 'badge-block'
@@ -23,10 +25,12 @@
 	];
 
 	const halftoneOnly = 'Halftone exports as PNG or SVG';
+	const HALFTONE_MAX_SIDE = 4096;
 
 	let busy = $state('');
 	let copied = $state(false);
-	let advanced = $state(false);
+	/** Live label for the PNG button while a halftone export renders off the main thread. */
+	let pngProgress = $state('');
 
 	async function run(label: string, fn: () => Promise<void>) {
 		busy = label;
@@ -36,48 +40,61 @@
 			alert(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
 		} finally {
 			busy = '';
+			pngProgress = '';
 		}
 	}
 
 	const svg = () =>
 		run('svg', async () => {
 			if (design.halftoneActive && design.encoded && design.halftoneImage) {
-				const { halftoneToSvg } = await import('$lib/halftone');
-				const text = halftoneToSvg(design.encoded, design.halftoneRaster, design.halftoneImage, halftoneOpts(), design.widthMm);
+				const { halftoneToSvg, loadImageRaster } = await import('$lib/halftone');
+				const source = await loadImageRaster(design.halftoneImage);
+				const text = halftoneToSvg(design.encoded, source, design.halftoneImage, halftoneOpts(), design.widthMm);
 				downloadText(text, `${name}.svg`, 'image/svg+xml');
 				return;
 			}
 			downloadText(svgText, `${name}.svg`, 'image/svg+xml');
 		});
 
-	/** The option set the preview verified, so the export is the code that actually decoded. */
-	const halftoneOpts = () => ({ ...(design.halftoneOpts ?? {}), quietZone: design.quietZone });
+	/**
+	 * The option set the preview verified, so the export is the code that actually decoded.
+	 * Snapshotted: the stored object is a reactive proxy, which cannot be posted to a worker.
+	 */
+	const halftoneOpts = () => ({ ...($state.snapshot(design.halftoneOpts) ?? {}), quietZone: design.quietZone });
 
 	const png = () =>
 		run('png', async () => {
 			if (!design.encoded) return;
 			if (design.halftoneActive && design.halftoneImage) {
-				const { renderHalftone } = await import('@stoneqr/engine');
-				const { loadImageRaster, rasterToPngBlob } = await import('$lib/halftone');
+				const { halftonePng } = await import('$lib/halftone-export');
+				const { loadImageRaster } = await import('$lib/halftone');
 				const total = design.encoded.size + 2 * design.quietZone;
-				// Cap the raster at 8192 px per side: past that browsers refuse to allocate the canvas.
+				// Cap the raster at 4096 px per side (about 17 megapixels). The picture is at most
+				// 1024 px to begin with, so more pixels add nothing, and past this PNG encoding alone
+				// takes seconds on a laptop.
 				const pxPerModule = Math.min(
-					Math.max(2, Math.floor(8192 / total)),
+					Math.max(2, Math.floor(HALFTONE_MAX_SIDE / total)),
 					Math.max(2, Math.round(((design.widthMm / 25.4) * design.dpi) / total))
 				);
-				const raster = renderHalftone(design.encoded, await loadImageRaster(design.halftoneImage), {
-					...halftoneOpts(),
-					pxPerModule
-				});
-				const bytes = new Uint8Array(await (await rasterToPngBlob(raster)).arrayBuffer());
-				downloadBytes(setPngDpi(bytes, design.dpi), `${name}-${design.dpi}dpi.png`, 'image/png');
+				// Rendered and encoded in a Web Worker so a poster-size raster never freezes the page.
+				pngProgress = 'Preparing…';
+				const bytes = await halftonePng(
+					design.encoded,
+					await loadImageRaster(design.halftoneImage),
+					{ ...halftoneOpts(), pxPerModule },
+					design.dpi,
+					(p) => {
+						pngProgress = p.phase === 'render' ? `Rendering ${Math.round(p.fraction * 100)}%` : 'Encoding…';
+					}
+				);
+				downloadBytes(bytes, `${name}-${design.dpi}dpi.png`, 'image/png');
 				return;
 			}
 			if (!design.styled) {
 				const r = exportPng(design.encoded, { widthMm: design.widthMm, dpi: design.dpi, quietZone: design.quietZone, fg: design.fg, bg: design.transparentBg ? '#ffffff' : design.bg });
 				downloadBytes(r.png, `${name}-${design.dpi}dpi.png`, 'image/png');
 			} else {
-				const px = Math.round((design.widthMm / 25.4) * design.dpi);
+				const px = Math.round((artWidthMm / 25.4) * design.dpi);
 				const canvas = await svgToCanvas(svgText, px);
 				const bytes = new Uint8Array(await (await canvasToPngBlob(canvas)).arrayBuffer());
 				downloadBytes(setPngDpi(bytes, design.dpi), `${name}-${design.dpi}dpi.png`, 'image/png');
@@ -94,7 +111,7 @@
 				downloadBytes(bytes, `${name}.pdf`, 'application/pdf');
 			} else {
 				const { styledPdf } = await import('$lib/styled-pdf');
-				downloadBytes(await styledPdf(svgText, design.widthMm, { title, bg: design.transparentBg ? undefined : design.bg }), `${name}.pdf`, 'application/pdf');
+				downloadBytes(await styledPdf(svgText, artWidthMm, { title, bg: design.transparentBg ? undefined : design.bg }), `${name}.pdf`, 'application/pdf');
 			}
 		});
 
@@ -112,7 +129,16 @@
 				downloadBytes(await exportTestSheet(design.encoded, { quietZone: design.quietZone, fg: design.fg, bg: design.bgColor, label }), `${name}-test-sheet.pdf`, 'application/pdf');
 			} else {
 				const { styledTestSheet } = await import('$lib/styled-pdf');
-				downloadBytes(await styledTestSheet(svgText, { label, bg: design.transparentBg ? undefined : design.bg, moduleCount: design.encoded.size + 2 * design.quietZone }), `${name}-test-sheet.pdf`, 'application/pdf');
+				downloadBytes(
+					await styledTestSheet(svgText, {
+						label,
+						bg: design.transparentBg ? undefined : design.bg,
+						moduleCount: design.encoded.size + 2 * design.quietZone,
+						scale: design.styledScale
+					}),
+					`${name}-test-sheet.pdf`,
+					'application/pdf'
+				);
 			}
 		});
 
@@ -163,10 +189,15 @@
 			<button type="button" class="rounded border border-rule-2 bg-white px-2 py-0.5 text-xs hover:border-ink-3" onclick={() => { design.unit = 'mm'; design.width = p.mm; }}>{p.label} mm</button>
 		{/each}
 	</div>
-	<div class="field">
-		<label for="dist">Read from (metres, optional)</label>
-		<input id="dist" class="input num" type="number" min="0.1" step="0.1" placeholder="e.g. 2 for a lobby sign" value={design.scanDistanceM ?? ''} oninput={(e) => { const v = e.currentTarget.value; design.scanDistanceM = v === '' ? null : Number(v); }} />
-	</div>
+	{#if design.styled && design.styledScale > 1}
+		<p class="hint">With the frame the whole artwork is <span class="num">{formatMm(fromMm(artWidthMm, design.unit))} {design.unit}</span> wide; the code inside stays {design.width} {design.unit}.</p>
+	{/if}
+	{#if advanced}
+		<div class="field">
+			<label for="dist">Read from (metres, optional)</label>
+			<input id="dist" class="input num" type="number" min="0.1" step="0.1" placeholder="e.g. 2 for a lobby sign" value={design.scanDistanceM ?? ''} oninput={(e) => { const v = e.currentTarget.value; design.scanDistanceM = v === '' ? null : Number(v); }} />
+		</div>
+	{/if}
 
 	{#if design.encoded}
 		<ul class="grid gap-2">
@@ -179,20 +210,19 @@
 		{/if}
 	{/if}
 
-	<div class="field">
-		<span class="label">Error correction</span>
-		<div class="flex flex-wrap items-center gap-3">
-			<div class="seg" role="group" aria-label="Error correction">
-				{#each eccs as e (e)}
-					<button type="button" aria-pressed={design.ecc === e} disabled={!!design.logo || design.halftoneActive} onclick={() => (design.eccChoice = e)}>{e}</button>
-				{/each}
-			</div>
-			<span class="hint">{design.halftoneActive ? 'Forced to H while a picture is blended in.' : design.logo ? 'Forced to H while a logo is present.' : { L: 'Survives 7% damage. Smallest code.', M: 'Survives 15%. The sensible default.', Q: 'Survives 25%.', H: 'Survives 30%. Needed for logos.' }[design.ecc]}</span>
-		</div>
-	</div>
-
-	<button type="button" class="ticket text-left underline" onclick={() => (advanced = !advanced)}>{advanced ? 'Hide' : 'Show'} advanced encoding</button>
 	{#if advanced}
+		<div class="field">
+			<span class="label">Error correction</span>
+			<div class="flex flex-wrap items-center gap-3">
+				<div class="seg" role="group" aria-label="Error correction">
+					{#each eccs as e (e)}
+						<button type="button" aria-pressed={design.ecc === e} disabled={!!design.logo || design.halftoneActive} onclick={() => (design.eccChoice = e)}>{e}</button>
+					{/each}
+				</div>
+				<span class="hint">{design.halftoneActive ? 'Forced to H while a picture is blended in.' : design.logo ? 'Forced to H while a logo is present.' : { L: 'Survives 7% damage. Smallest code.', M: 'Survives 15%. The sensible default.', Q: 'Survives 25%.', H: 'Survives 30%. Needed for logos.' }[design.ecc]}</span>
+			</div>
+		</div>
+
 		<div class="grid grid-cols-3 gap-3">
 			<div class="field">
 				<label for="quiet">Quiet zone</label>
@@ -226,13 +256,21 @@
 		<div class="grid grid-cols-2 gap-2">
 			<button type="button" class="btn btn-accent" disabled={!canExport || busy === 'svg'} onclick={svg}>SVG <span class="ticket text-paper/70">vector</span></button>
 			<button type="button" class="btn" disabled={!canExport || busy === 'pdf' || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : ''} onclick={pdf}>PDF <span class="ticket text-paper/70">{design.styled ? 'raster' : 'CMYK'}</span></button>
-			<button type="button" class="btn btn-secondary" disabled={!canExport || busy === 'png'} onclick={png}>PNG <span class="ticket">{design.dpi} dpi</span></button>
-			<button type="button" class="btn btn-secondary" disabled={!canExport || design.styled || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : design.styled ? 'EPS is available for the plain square style' : ''} onclick={eps}>EPS</button>
+			<button type="button" class="btn btn-secondary" disabled={!canExport || busy === 'png'} onclick={png} aria-live="polite">
+				{#if busy === 'png' && pngProgress}{pngProgress}{:else}PNG <span class="ticket">{design.dpi} dpi</span>{/if}
+			</button>
+			{#if advanced}
+				<button type="button" class="btn btn-secondary" disabled={!canExport || design.styled || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : design.styled ? 'EPS is available for the plain square style' : ''} onclick={eps}>EPS</button>
+			{:else}
+				<button type="button" class="btn btn-secondary" disabled={!canExport || busy === 'copy'} onclick={copy}>{copied ? 'Copied' : 'Copy PNG'}</button>
+			{/if}
 		</div>
-		<div class="grid grid-cols-2 gap-2">
-			<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'copy'} onclick={copy}>{copied ? 'Copied' : 'Copy PNG'}</button>
-			<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'sheet' || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : ''} onclick={testSheet}>Print test sheet</button>
-		</div>
+		{#if advanced}
+			<div class="grid grid-cols-2 gap-2">
+				<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'copy'} onclick={copy}>{copied ? 'Copied' : 'Copy PNG'}</button>
+				<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'sheet' || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : ''} onclick={testSheet}>Print test sheet</button>
+			</div>
+		{/if}
 		{#if design.encoded && !canExport}
 			<p class="hint">
 				{#if design.verify === 'checking'}Checking that the code decodes…{:else if design.verify === 'fail'}Downloads unlock once the code decodes on your device.{:else if design.logoBlocked}Shrink the logo below 25% of the area to download.{:else}Fix the blocking issue above to download.{/if}

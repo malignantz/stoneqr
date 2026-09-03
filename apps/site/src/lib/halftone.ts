@@ -2,7 +2,7 @@
  * Browser glue for the engine's halftone renderer (plan §7). Browser only.
  * The uploaded picture is decoded on a canvas and never leaves the device.
  */
-import { escapeXml, type EncodedQr, type HalftoneOptions, type RasterImage } from '@stoneqr/engine';
+import { escapeXml, imagePlacement, type EncodedQr, type HalftoneOptions, type RasterImage } from '@stoneqr/engine';
 
 /** Decode a data URL onto a canvas and return its pixels, downscaled so the long side fits `maxSide`. */
 export async function loadImageRaster(dataUrl: string, maxSide = 1024): Promise<RasterImage> {
@@ -49,11 +49,11 @@ export async function rasterToPngBlob(raster: RasterImage): Promise<Blob> {
 /**
  * Two-layer SVG (plan §7 step 7): the picture underneath, clipped to the data area, and one path
  * carrying every solid function module and every data dot, in module units so it scales cleanly.
+ * `source` is the picture's pixel size, so the zoom and position match the raster the preview verified.
  */
 export function halftoneToSvg(
 	qr: EncodedQr,
-	/** The verified raster. Kept for API symmetry; the SVG embeds the original file, not these pixels. */
-	_raster: RasterImage | null,
+	source: { width: number; height: number },
 	imageDataUrl: string,
 	opts: HalftoneOptions = {},
 	widthMm = 30
@@ -68,6 +68,7 @@ export function halftoneToSvg(
 	// The engine renders the picture with the same fade/greyscale baked in; the SVG layer keeps the
 	// original file and reproduces the adjustments with filters so the vector stays editable.
 	const filter = imageFilter(opts);
+	const place = imagePlacement(source.width, source.height, qr.size, opts);
 	return (
 		`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
 		`width="${w}mm" height="${w}mm" viewBox="0 0 ${total} ${total}" shape-rendering="crispEdges">` +
@@ -75,8 +76,8 @@ export function halftoneToSvg(
 		`<defs><clipPath id="${id}"><rect x="${quiet}" y="${quiet}" width="${qr.size}" height="${qr.size}"/></clipPath>${filter.defs}</defs>` +
 		`<rect width="${total}" height="${total}" fill="${light}"/>` +
 		`<g clip-path="url(#${id})">` +
-		`<image x="${quiet}" y="${quiet}" width="${qr.size}" height="${qr.size}" ` +
-		`preserveAspectRatio="xMidYMid slice"${filter.attr} href="${escapeXml(imageDataUrl)}" xlink:href="${escapeXml(imageDataUrl)}"/>` +
+		`<image x="${num(quiet + place.x)}" y="${num(quiet + place.y)}" width="${num(place.width)}" height="${num(place.height)}" ` +
+		`preserveAspectRatio="none"${filter.attr} href="${escapeXml(imageDataUrl)}" xlink:href="${escapeXml(imageDataUrl)}"/>` +
 		`</g>` +
 		`<path d="${halftonePath(qr, quiet, dotScale, false)}" fill="${light}"/>` +
 		`<path d="${halftonePath(qr, quiet, dotScale, true)}" fill="${dark}"/>` +

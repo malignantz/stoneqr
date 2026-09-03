@@ -9,4 +9,4 @@ export { crc32, physChunk, setPngDpi, encodePng, exportPng, parseRgb, type PngEx
 export { exportEps, mergedRuns, type EpsOptions, type ModuleRun } from './export/eps.js';
 // PDF exports (pdf-lib) stay on the "./export/pdf" subpath so the core bundle stays small.
 // Label sheets (pdf-lib) stay on the "./labels" subpath for the same reason.
-export { renderHalftone, halftoneVersionFor, halftoneWithFallback, DOT_SCALE_MIN, DOT_SCALE_MAX, HALFTONE_MIN_MODULES, type HalftoneOptions, type HalftoneResult } from './render/halftone.js';
+export { renderHalftone, halftoneVersionFor, halftoneWithFallback, imagePlacement, DOT_SCALE_MIN, DOT_SCALE_MAX, IMAGE_ZOOM_MIN, IMAGE_ZOOM_MAX, IMAGE_OFFSET_MAX, HALFTONE_MIN_MODULES, type HalftoneOptions, type HalftoneResult, type ImagePlacement } from './render/halftone.js';

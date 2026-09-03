@@ -2,8 +2,12 @@
  * Styled rendering behind a lazy import of @liquid-js/qr-code-styling (browser only).
  * The library re-encodes internally; we pass the same ECC and force the same version so
  * the module count matches the engine's sizing math, then read the real count back.
+ *
+ * The call-to-action frame is our own SVG wrapper around the library's output. The library's
+ * BorderPlugin draws a stroke ring with text on a path and sizes the text as the whole code
+ * when `proportional` is set, which is not a label band; a plain wrapper is smaller and predictable.
  */
-import type { Ecc } from '@stoneqr/engine';
+import { escapeXml, type Ecc } from '@stoneqr/engine';
 
 export type DotStyle = 'square' | 'rounded' | 'dots' | 'classy' | 'extra-rounded';
 export type CornerSquareStyle = 'square' | 'extra-rounded' | 'dot' | 'classy';
@@ -34,7 +38,16 @@ export interface StyledResult {
 	svg: string;
 	/** Modules per side that the library actually produced. */
 	size: number;
+	/**
+	 * Width of the whole artwork divided by the width of the code itself: 1 without a frame,
+	 * a little more with one. Exports multiply the print width by this so the code stays the
+	 * size the user asked for and the frame is added around it.
+	 */
+	scale: number;
 }
+
+/** Frame proportions relative to the code width (which already includes its quiet zone). */
+export const FRAME = { edge: 0.04, band: 0.17, radius: 0.045, maxChars: 40 } as const;
 
 const DOT_MAP: Record<DotStyle, string> = {
 	square: 'square',
@@ -47,7 +60,6 @@ const DOT_MAP: Record<DotStyle, string> = {
 const ECC_MAP: Record<Ecc, string> = { L: 'L', M: 'M', Q: 'Q', H: 'H' };
 
 let libPromise: Promise<typeof import('@liquid-js/qr-code-styling')> | undefined;
-let borderPromise: Promise<typeof import('@liquid-js/qr-code-styling/border-plugin')> | undefined;
 
 export function preloadStyled(): void {
 	libPromise ??= import('@liquid-js/qr-code-styling');
@@ -60,28 +72,6 @@ export function preloadStyled(): void {
 export async function renderStyled(opts: StyleOptions, widthMm: number): Promise<StyledResult> {
 	libPromise ??= import('@liquid-js/qr-code-styling');
 	const lib = await libPromise;
-	const plugins: unknown[] = [];
-	if (opts.frame.enabled) {
-		borderPromise ??= import('@liquid-js/qr-code-styling/border-plugin');
-		const { default: BorderPlugin } = await borderPromise;
-		plugins.push(
-			new BorderPlugin({
-				proportional: true,
-				size: 0.03,
-				round: 0.05,
-				color: opts.frame.color,
-				margin: 0.02,
-				text: {
-					bottom: {
-						content: opts.frame.text || 'Scan me',
-						color: opts.frame.textColor,
-						font: 'Helvetica, Arial, sans-serif',
-						fontWeight: 'bold'
-					}
-				}
-			})
-		);
-	}
 
 	const gradient =
 		opts.gradient === 'none'
@@ -114,14 +104,63 @@ export async function renderStyled(opts: StyleOptions, widthMm: number): Promise
 			imageSize: opts.logoSize,
 			margin: opts.logoMargin,
 			fill: { color: opts.logoKnockout ? (opts.bg === 'transparent' ? '#ffffff' : opts.bg) : 'rgba(0,0,0,0)' }
-		},
-		plugins: plugins as never
+		}
 	});
 
 	let svg = (await qr.serialize()) ?? '';
 	if (!svg) throw new Error('Styled renderer produced no output');
-	svg = setPhysicalSize(svg, widthMm);
-	return { svg, size: countModules(svg, opts.version) };
+	let scale = 1;
+	if (opts.frame.enabled) {
+		const framed = frameSvg(svg, opts);
+		svg = framed.svg;
+		scale = framed.scale;
+	}
+	svg = setPhysicalSize(svg, widthMm * scale);
+	return { svg, size: countModules(svg, opts.version), scale };
+}
+
+/**
+ * Wrap the code in a rounded frame with a label band underneath. The code keeps its own quiet
+ * zone inside; the frame is outside it, so decoding is unaffected. Units are the library's pixels.
+ */
+export function frameSvg(inner: string, opts: Pick<StyleOptions, 'bg' | 'frame'>): { svg: string; scale: number } {
+	const vb = inner.match(/viewBox="([^"]+)"/)?.[1]?.split(/\s+/).map(Number);
+	const w = (vb && vb[2]) || Number(inner.match(/\swidth="([\d.]+)"/)?.[1]) || 1000;
+	const h = (vb && vb[3]) || w;
+	const t = w * FRAME.edge;
+	const band = w * FRAME.band;
+	const r = w * FRAME.radius;
+	const outerW = w + 2 * t;
+	const outerH = h + t + band;
+
+	// Drop the XML prologue and the outer size so the code nests as a positioned child.
+	let body = inner.replace(/^\s*<\?xml[^>]*\?>\s*/, '');
+	body = body.replace(/^<svg([^>]*)>/, (_m, attrs: string) => {
+		const kept = attrs.replace(/\s(?:width|height|x|y)="[^"]*"/g, '');
+		return `<svg${kept} x="${n(t)}" y="${n(t)}" width="${n(w)}" height="${n(h)}">`;
+	});
+
+	const paper = opts.bg === 'transparent' ? '#ffffff' : opts.bg;
+	const text = (opts.frame.text || 'Scan me').trim().slice(0, FRAME.maxChars) || 'Scan me';
+	// Fit long labels: bold sans runs about 0.6 em per character; keep it inside 90% of the width.
+	const fontSize = Math.min(band * 0.52, (outerW * 0.9) / (0.62 * Math.max(4, text.length)));
+	const textY = t + h + band / 2 + fontSize * 0.36;
+
+	const svg =
+		`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
+		`viewBox="0 0 ${n(outerW)} ${n(outerH)}" width="${n(outerW)}" height="${n(outerH)}">` +
+		`<rect width="${n(outerW)}" height="${n(outerH)}" rx="${n(r)}" fill="${opts.frame.color}"/>` +
+		`<rect x="${n(t)}" y="${n(t)}" width="${n(w)}" height="${n(h)}" fill="${paper}"/>` +
+		body +
+		`<text x="${n(outerW / 2)}" y="${n(textY)}" text-anchor="middle" ` +
+		`font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="${n(fontSize)}" ` +
+		`fill="${opts.frame.textColor}">${escapeXml(text)}</text>` +
+		`</svg>`;
+	return { svg, scale: outerW / w };
+}
+
+function n(v: number): string {
+	return Number(v.toFixed(3)).toString();
 }
 
 function setPhysicalSize(svg: string, widthMm: number): string {
