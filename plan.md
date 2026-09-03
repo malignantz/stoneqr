@@ -230,10 +230,10 @@ All routes prerendered. Each SEO page carries a short, genuinely useful explaine
 ### UI notes
 
 - Desktop: three columns (content, live preview, style and export). Mobile: single column with a sticky preview.
-- Two control sets, Basic and Advanced, toggled above the generator and remembered in localStorage. Basic keeps content, colours, module shape, logo, frame, size presets, and the main downloads. Advanced adds halftone, transparency, corner shapes, gradients, scan distance, error correction and encoding, EPS, and the test sheet. A setting that is still in force but hidden by Basic is named in a one-line notice.
+- Two control sets, Basic and Advanced, toggled above the generator and remembered in localStorage. Basic keeps content, colours, module shape, logo, frame, four named sizes, and the main downloads. The sizes are Small 25 mm (cards, stickers), Medium 50 mm (flyers, menus; the default), Large 100 mm (posters, door signs), Extra large 300 mm (banners, storefronts); each card states its reading distance from the 10:1 rule and flags itself "tight" or "too small" for the current content from the module-size floors. A width typed in Advanced appears in Basic as a selected "Custom" row. Basic's primary download is PNG, labelled with the pixel size it will produce; Advanced keeps SVG first. Advanced adds halftone, transparency, corner shapes, gradients, scan distance, error correction and encoding, EPS, and the test sheet. A setting that is still in force but hidden by Basic is named in a one-line notice.
 - While a halftone picture is blended in, the Style panel is disabled and greyed out rather than silently ignored.
 - Preview re-encodes on every keystroke (sub-millisecond); verification runs debounced at 300 ms and shows a "Scannable" badge or a specific warning.
-- Export panel: physical size inputs, the sizing assessment, a "Print-safe" badge when module size is at least 0.5 mm and contrast passes, and the format buttons.
+- Export panel: physical size inputs (Advanced) or the size cards (Basic), the sizing assessment (Basic hides the two informational lines the cards already cover), a "Print-safe" badge when module size is at least 0.5 mm and contrast passes, and the format buttons.
 - Persistent one-liner near the download buttons: "Generated on your device. Never expires. Nothing was uploaded."
 - Design: calm, print-shop feel; stone grey and a single accent; large type; no marketing chrome on the tool page.
 

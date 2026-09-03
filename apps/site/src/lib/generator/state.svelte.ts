@@ -91,7 +91,7 @@ export class Design {
 	quietZone = $state(4);
 
 	// Physical size
-	width = $state(30);
+	width = $state(50);
 	unit = $state<LengthUnit>('mm');
 	scanDistanceM = $state<number | null>(null);
 	dpi = $state(300);

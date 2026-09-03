@@ -4,6 +4,7 @@
 	import { svgToCanvas, canvasToPngBlob } from '$lib/svg-raster';
 	import { SITE } from '$lib/site';
 	import { describe, type Design } from './state.svelte';
+	import { SIZE_TIERS, tierFor, tierFit, tierDistance, formatIn } from './sizes';
 
 	let { design, advanced = false }: { design: Design; advanced?: boolean } = $props();
 
@@ -11,6 +12,23 @@
 	const svgText = $derived(design.styled ? design.styledSvg : design.plainSvg);
 	/** Physical width of the styled artwork: the code width plus the frame when there is one. */
 	const artWidthMm = $derived(design.widthMm * (design.styled ? design.styledScale : 1));
+
+	// Basic mode: four named sizes instead of a width field. A width set by hand in Advanced
+	// shows up as a fifth, "Custom" row so nothing is silently in force.
+	const tier = $derived(tierFor(design.widthMm));
+	const fitOf = (mm: number) => (design.encoded ? tierFit(mm, design.encoded.size, design.quietZone) : 'good');
+	const fitLabel = { good: '', tight: 'Tight for this content', small: 'Too small for this content' } as const;
+	function pickTier(mm: number) {
+		design.unit = 'mm';
+		design.width = mm;
+	}
+	/**
+	 * Basic hides the two informational sizing lines (module size, reads-to distance) because the
+	 * size list already says the same thing in plain words. Warnings and blocks always show.
+	 */
+	const visibleWarnings = $derived(
+		advanced ? design.warnings : design.warnings.filter((w) => !(w.level === 'info' && (w.code === 'scan-distance' || w.code === 'module-size')))
+	);
 	const name = $derived(`stoneqr-${slug(design.type === 'url' ? design.fields.url.url : describe(design.type))}`);
 	const badgeClass = $derived(
 		design.status === 'print-safe' ? 'badge-ok' : design.status === 'scannable' ? 'badge-muted' : design.status === 'risky' ? 'badge-warn' : 'badge-block'
@@ -26,6 +44,23 @@
 
 	const halftoneOnly = 'Halftone exports as PNG or SVG';
 	const HALFTONE_MAX_SIDE = 4096;
+
+	/**
+	 * Pixels per module for a halftone PNG. Capped at 4096 px per side (about 17 megapixels): the
+	 * picture is at most 1024 px to begin with, so more pixels add nothing, and past this PNG
+	 * encoding alone takes seconds on a laptop.
+	 */
+	const halftonePxPerModule = $derived.by(() => {
+		if (!design.encoded) return 0;
+		const total = design.encoded.size + 2 * design.quietZone;
+		return Math.min(Math.max(2, Math.floor(HALFTONE_MAX_SIDE / total)), Math.max(2, Math.round(((design.widthMm / 25.4) * design.dpi) / total)));
+	});
+	/** Side of the PNG the button will produce, so Basic can show it instead of a dpi figure. */
+	const pngPx = $derived(
+		design.encoded && design.halftoneActive
+			? halftonePxPerModule * (design.encoded.size + 2 * design.quietZone)
+			: Math.round((artWidthMm / 25.4) * design.dpi)
+	);
 
 	let busy = $state('');
 	let copied = $state(false);
@@ -68,20 +103,12 @@
 			if (design.halftoneActive && design.halftoneImage) {
 				const { halftonePng } = await import('$lib/halftone-export');
 				const { loadImageRaster } = await import('$lib/halftone');
-				const total = design.encoded.size + 2 * design.quietZone;
-				// Cap the raster at 4096 px per side (about 17 megapixels). The picture is at most
-				// 1024 px to begin with, so more pixels add nothing, and past this PNG encoding alone
-				// takes seconds on a laptop.
-				const pxPerModule = Math.min(
-					Math.max(2, Math.floor(HALFTONE_MAX_SIDE / total)),
-					Math.max(2, Math.round(((design.widthMm / 25.4) * design.dpi) / total))
-				);
 				// Rendered and encoded in a Web Worker so a poster-size raster never freezes the page.
 				pngProgress = 'Preparing…';
 				const bytes = await halftonePng(
 					design.encoded,
 					await loadImageRaster(design.halftoneImage),
-					{ ...halftoneOpts(), pxPerModule },
+					{ ...halftoneOpts(), pxPerModule: halftonePxPerModule },
 					design.dpi,
 					(p) => {
 						pngProgress = p.phase === 'render' ? `Rendering ${Math.round(p.fraction * 100)}%` : 'Encoding…';
@@ -172,23 +199,65 @@
 		{#if design.encoded}<span class="badge {badgeClass}">{design.status.replace('-', ' ')}</span>{/if}
 	</div>
 
-	<div class="grid grid-cols-[1fr_auto] gap-3">
-		<div class="field">
-			<label for="width">Print width</label>
-			<input id="width" class="input num" type="number" min="5" step="1" bind:value={design.width} />
+	{#if advanced}
+		<div class="grid grid-cols-[1fr_auto] gap-3">
+			<div class="field">
+				<label for="width">Print width</label>
+				<input id="width" class="input num" type="number" min="5" step="1" bind:value={design.width} />
+			</div>
+			<div class="field">
+				<label for="unit">Unit</label>
+				<select id="unit" class="select" bind:value={design.unit}>
+					<option value="mm">mm</option><option value="cm">cm</option><option value="in">in</option>
+				</select>
+			</div>
 		</div>
-		<div class="field">
-			<label for="unit">Unit</label>
-			<select id="unit" class="select" bind:value={design.unit}>
-				<option value="mm">mm</option><option value="cm">cm</option><option value="in">in</option>
-			</select>
+		<div class="flex flex-wrap gap-1.5">
+			{#each presets as p (p.mm)}
+				<button type="button" class="rounded border border-rule-2 bg-white px-2 py-0.5 text-xs hover:border-ink-3" onclick={() => pickTier(p.mm)}>{p.label} mm</button>
+			{/each}
 		</div>
-	</div>
-	<div class="flex flex-wrap gap-1.5">
-		{#each presets as p (p.mm)}
-			<button type="button" class="rounded border border-rule-2 bg-white px-2 py-0.5 text-xs hover:border-ink-3" onclick={() => { design.unit = 'mm'; design.width = p.mm; }}>{p.label} mm</button>
-		{/each}
-	</div>
+	{:else}
+		<fieldset class="m-0 grid gap-2 border-0 p-0">
+			<legend class="ticket mb-2">How big will it be printed?</legend>
+			{#each SIZE_TIERS as t (t.id)}
+				{@const fit = fitOf(t.mm)}
+				{@const on = tier?.id === t.id}
+				<label class="tier" data-on={on}>
+					<input type="radio" name="size-tier" class="sr-only" value={t.id} checked={on} onchange={() => pickTier(t.mm)} />
+					<span class="tier-dot" aria-hidden="true"></span>
+					<span class="grid min-w-0 gap-0.5">
+						<span class="flex flex-wrap items-baseline justify-between gap-x-3">
+							<span class="font-medium">{t.name}</span>
+							<span class="num text-xs text-ink-3">{t.mm} mm · {formatIn(t.mm)} in</span>
+						</span>
+						<span class="text-sm text-ink-2">{t.uses}</span>
+						<span class="text-xs text-ink-3">{tierDistance(t)}.</span>
+						{#if fit !== 'good'}
+							<span class="text-xs font-medium {fit === 'small' ? 'text-block' : 'text-warn'}">{fitLabel[fit]}</span>
+						{/if}
+					</span>
+				</label>
+			{/each}
+			{#if !tier}
+				{@const fit = fitOf(design.widthMm)}
+				<label class="tier" data-on={true}>
+					<input type="radio" name="size-tier" class="sr-only" value="custom" checked />
+					<span class="tier-dot" aria-hidden="true"></span>
+					<span class="grid min-w-0 gap-0.5">
+						<span class="flex flex-wrap items-baseline justify-between gap-x-3">
+							<span class="font-medium">Custom</span>
+							<span class="num text-xs text-ink-3">{formatMm(design.widthMm)} mm · {formatIn(design.widthMm, true)} in</span>
+						</span>
+						<span class="text-sm text-ink-2">Set in Advanced. Pick a size above to replace it.</span>
+						{#if fit !== 'good'}
+							<span class="text-xs font-medium {fit === 'small' ? 'text-block' : 'text-warn'}">{fitLabel[fit]}</span>
+						{/if}
+					</span>
+				</label>
+			{/if}
+		</fieldset>
+	{/if}
 	{#if design.styled && design.styledScale > 1}
 		<p class="hint">With the frame the whole artwork is <span class="num">{formatMm(fromMm(artWidthMm, design.unit))} {design.unit}</span> wide; the code inside stays {design.width} {design.unit}.</p>
 	{/if}
@@ -201,7 +270,7 @@
 
 	{#if design.encoded}
 		<ul class="grid gap-2">
-			{#each design.warnings as w (w.code + w.level + w.message)}
+			{#each visibleWarnings as w (w.code + w.level + w.message)}
 				<li class="notice notice-{w.level}">{w.message}</li>
 			{/each}
 		</ul>
@@ -253,23 +322,30 @@
 	<hr class="rule" />
 
 	<div class="grid gap-2">
-		<div class="grid grid-cols-2 gap-2">
-			<button type="button" class="btn btn-accent" disabled={!canExport || busy === 'svg'} onclick={svg}>SVG <span class="ticket text-paper/70">vector</span></button>
-			<button type="button" class="btn" disabled={!canExport || busy === 'pdf' || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : ''} onclick={pdf}>PDF <span class="ticket text-paper/70">{design.styled ? 'raster' : 'CMYK'}</span></button>
-			<button type="button" class="btn btn-secondary" disabled={!canExport || busy === 'png'} onclick={png} aria-live="polite">
-				{#if busy === 'png' && pngProgress}{pngProgress}{:else}PNG <span class="ticket">{design.dpi} dpi</span>{/if}
-			</button>
-			{#if advanced}
-				<button type="button" class="btn btn-secondary" disabled={!canExport || design.styled || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : design.styled ? 'EPS is available for the plain square style' : ''} onclick={eps}>EPS</button>
-			{:else}
-				<button type="button" class="btn btn-secondary" disabled={!canExport || busy === 'copy'} onclick={copy}>{copied ? 'Copied' : 'Copy PNG'}</button>
-			{/if}
-		</div>
 		{#if advanced}
+			<div class="grid grid-cols-2 gap-2">
+				<button type="button" class="btn btn-accent" disabled={!canExport || busy === 'svg'} onclick={svg}>SVG <span class="ticket text-paper/70">vector</span></button>
+				<button type="button" class="btn" disabled={!canExport || busy === 'pdf' || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : ''} onclick={pdf}>PDF <span class="ticket text-paper/70">{design.styled ? 'raster' : 'CMYK'}</span></button>
+				<button type="button" class="btn btn-secondary" disabled={!canExport || busy === 'png'} onclick={png} aria-live="polite">
+					{#if busy === 'png' && pngProgress}{pngProgress}{:else}PNG <span class="ticket">{design.dpi} dpi</span>{/if}
+				</button>
+				<button type="button" class="btn btn-secondary" disabled={!canExport || design.styled || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : design.styled ? 'EPS is available for the plain square style' : ''} onclick={eps}>EPS</button>
+			</div>
 			<div class="grid grid-cols-2 gap-2">
 				<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'copy'} onclick={copy}>{copied ? 'Copied' : 'Copy PNG'}</button>
 				<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'sheet' || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : ''} onclick={testSheet}>Print test sheet</button>
 			</div>
+		{:else}
+			<!-- Basic: one obvious download, two for specialists, each saying who it is for. -->
+			<button type="button" class="btn btn-accent w-full" disabled={!canExport || busy === 'png'} onclick={png} aria-live="polite">
+				{#if busy === 'png' && pngProgress}{pngProgress}{:else}Download PNG <span class="ticket text-paper/70 num">{pngPx} px</span>{/if}
+			</button>
+			<div class="grid grid-cols-2 gap-2">
+				<button type="button" class="btn btn-secondary" disabled={!canExport || busy === 'pdf' || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : ''} onclick={pdf}>PDF <span class="ticket whitespace-nowrap">print</span></button>
+				<button type="button" class="btn btn-secondary" disabled={!canExport || busy === 'svg'} onclick={svg}>SVG <span class="ticket whitespace-nowrap">vector</span></button>
+			</div>
+			<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'copy'} onclick={copy}>{copied ? 'Copied' : 'Copy to clipboard'}</button>
+			<p class="hint text-center">PNG for documents, slides, and the web. PDF for print shops. SVG for designers.</p>
 		{/if}
 		{#if design.encoded && !canExport}
 			<p class="hint">

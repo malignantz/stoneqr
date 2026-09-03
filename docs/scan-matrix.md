@@ -71,6 +71,17 @@ The frame sits outside the quiet zone; the print width is the code, the artwork 
 | geo: | – | – | – | |
 | VEVENT | – | – | – | record which phones offer "Add to calendar" |
 
+## Basic size tiers (plain black-on-white URL, PNG at 300 dpi)
+
+The four widths Basic offers. Print each at 100% and scan from the distance the card promises ("up to about"), in ordinary indoor light. A ✅ here backs the copy on the card; a ❌ means the tier's distance text in `apps/site/src/lib/generator/sizes.ts` needs softening.
+
+| Tier | Width | Promised distance | iPhone Camera | Android Camera | Google Lens | Notes |
+|---|---|---|---|---|---|---|
+| Small | 25 mm | 25 cm (10 in) | – | – | – | also try a vCard: the card should flag it too small |
+| Medium | 50 mm | 50 cm (20 in) | – | – | – | the default |
+| Large | 100 mm | 1 m (3 ft) | – | – | – | |
+| Extra large | 300 mm | 3 m (10 ft) | – | – | – | tile onto A3 or print at a shop |
+
 ## File formats opened in
 
 | Format | Illustrator | Affinity | Inkscape | Preview.app | Print shop RIP | Notes |
