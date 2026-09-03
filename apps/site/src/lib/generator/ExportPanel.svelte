@@ -67,12 +67,29 @@
 	/** Live label for the PNG button while a halftone export renders off the main thread. */
 	let pngProgress = $state('');
 
+	/**
+	 * Every export loads its heavy half lazily, and a hashed chunk stops being served the moment a
+	 * new version is published, so a tab left open across a deploy asks for a file that is gone.
+	 * The browser records that failure in its module map, which means a retry cannot fix it: only
+	 * a reload can. Say that in words rather than showing the module URL.
+	 */
+	const isStaleChunk = (e: unknown) =>
+		/dynamically imported module|Importing a module script failed|module script failed/i.test(
+			e instanceof Error ? e.message : String(e)
+		);
+
 	async function run(label: string, fn: () => Promise<void>) {
 		busy = label;
 		try {
 			await fn();
 		} catch (e) {
-			alert(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
+			if (isStaleChunk(e)) {
+				alert(
+					'StoneQR was updated while this page was open, so the part that makes this file is no longer on the server. Reload the page and download again. Nothing you typed is saved, so you will need to set the code up once more.'
+				);
+			} else {
+				alert(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
+			}
 		} finally {
 			busy = '';
 			pngProgress = '';
