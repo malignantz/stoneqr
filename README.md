@@ -2,7 +2,7 @@
 
 **QR codes set in stone. Generated in your browser, never expire.**
 
-A free, open-source (MIT) QR code generator that runs entirely in the browser. Static codes never touch a server, so they cannot expire or be deactivated. Built for people who print: error-correction control, a print-size and scan-distance calculator, vector exports with real millimetre dimensions, logos with a coverage cap, and a decode check before every download.
+A free, open-source (MIT) QR code generator that runs entirely in the browser. Static codes never touch a server, so they cannot expire or be deactivated. Built for people who print: error-correction control, a print-size and scan-distance calculator, vector exports with real millimetre dimensions, logos with a coverage cap, a call-to-action frame, an artistic halftone mode that blends a photo into the code (with zoom and crop), and a decode check before every download. The generator has a Basic control set for the common case and an Advanced one for everything else.
 
 Live at [stoneqr.app](https://stoneqr.app). Sibling of [SignUpCity](https://signupcity.app), which handles the optional editable, tracked codes.
 
@@ -28,7 +28,7 @@ bun run build      # static output in apps/site/build
 
 ## Engine
 
-`@stoneqr/engine` is pure TypeScript with no DOM dependency in its core path. It runs in Node, Workers, and browsers.
+`@stoneqr/engine` is pure TypeScript with no DOM dependency in its core path. It runs in Node, Workers, and browsers. The site uses that for its two Web Workers: bulk generation and halftone PNG export, so a poster-size raster never blocks the page.
 
 ```ts
 import { encode, renderSvg, assess, rasterize, verifyRaster } from '@stoneqr/engine';
@@ -41,7 +41,7 @@ const warnings = assess({ widthMm: 30, size: qr.size });
 const check = verifyRaster(rasterize(qr), text);     // { ok: true }
 ```
 
-Subpaths: `./payloads`, `./sizing`, `./export/pdf` (pdf-lib), `./export/eps`, `./export/png`, `./labels` (Avery geometry and label-sheet PDFs), `./verify`.
+Subpaths: `./payloads`, `./sizing`, `./render/halftone` (picture-over-matrix renderer with the decode-verified fallback ladder), `./export/pdf` (pdf-lib), `./export/eps`, `./export/png`, `./labels` (Avery geometry and label-sheet PDFs), `./verify`.
 
 ## Privacy promise
 

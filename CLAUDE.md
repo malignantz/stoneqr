@@ -4,7 +4,10 @@ Free, open-source (MIT), browser-only QR code generator. Brand: StoneQR at stone
 
 ## Rules
 
-- Read `plan.md` first; it is the source of truth for scope, architecture, and milestones. Building started 2026-09-02; M1 to M4 plus most of M7 are in place, halftone (M5), the bulk UI (M6), and the SignUpCity return leg (M8) are not.
+- Read `plan.md` first; it is the source of truth for scope, architecture, and milestones. Building started 2026-09-02. M1 to M8 are built, including halftone with zoom and crop, the bulk page, and the `?short=` return leg. Still open: the real-device scan matrix in `docs/scan-matrix.md` and the remaining M7 extras.
+- The generator has Basic and Advanced control sets (toggle above the columns, remembered in localStorage). Anything only Advanced exposes must be listed in `Design.advancedInUse` so Basic can say it is still in force.
+- The call-to-action frame is our own SVG wrapper in `apps/site/src/lib/styled.ts`; do not reintroduce the styling library's border plugin (it sizes text as the whole code and needs a separate lazy chunk). Framed art is taller than wide: exports and the decode check go through the aspect-aware `svgToCanvas` and `Design.styledScale`.
+- Halftone PNG export renders and encodes in `apps/site/src/lib/halftone.worker.ts`. Anything posted to it must be plain data (use `$state.snapshot` on reactive objects). Keep `renderHalftone` allocation-free in its inner loops; a 4096 px raster should stay around 200 ms.
 - Commands from the root: `bun install`, `bun run dev`, `bun run test` (engine vitest), `bun run check` (svelte-check), `bun run build`, `./deploy.sh` (wrangler pages deploy). Bun uses isolated installs here, so packages live under `apps/site/node_modules` and `packages/engine/node_modules`, not the root.
 - The engine's `index.ts` deliberately does not export the pdf-lib modules; import `@stoneqr/engine/export/pdf` and `@stoneqr/engine/labels` lazily from the site so the core chunk stays small (currently about 77 KB gzipped on the generator page, budget 150 KB).
 - Claims about competitors or physics that appear on the site are tracked in `docs/claims.md`; verify before changing marketing copy.

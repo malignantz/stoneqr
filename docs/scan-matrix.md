@@ -34,11 +34,27 @@ Legend: ✅ scanned first try · ⚠️ scanned after moving/lighting · ❌ did
 |---|---|---|---|---|
 | 30 mm | – | – | – | plan expects older Android to fail |
 
+## Framed (call-to-action band, plain modules)
+
+The frame sits outside the quiet zone; the print width is the code, the artwork is 8% wider and 21% taller. Check the label is legible and the code still reads at the small sizes.
+
+| Size | iPhone Camera | Android Camera | Google Lens | Notes |
+|---|---|---|---|---|
+| 20 mm | – | – | – | |
+| 30 mm | – | – | – | |
+
 ## Halftone (dotScale 0.4, version ≥ 7)
 
 | Size | iPhone Camera | Android Camera | Google Lens | Notes |
 |---|---|---|---|---|
 | 30 mm | – | – | – | |
+| 50 mm | – | – | – | |
+
+## Halftone, zoomed 2× and shifted 25% (busy crop)
+
+| Size | iPhone Camera | Android Camera | Google Lens | Notes |
+|---|---|---|---|---|
+| 30 mm | – | – | – | zoom crops into the picture; expect the fallback ladder to enlarge dots more often |
 | 50 mm | – | – | – | |
 
 ## Content types (30 mm, plain)
@@ -63,4 +79,6 @@ Legend: ✅ scanned first try · ⚠️ scanned after moving/lighting · ❌ did
 | PDF (CMYK) | – | – | – | – | – | check ink is 100% K only |
 | EPS | – | – | – | – | – | |
 | PNG 300 dpi | – | – | – | – | – | check the DPI metadata reads 300 |
+| PNG halftone, 250 mm at 600 dpi | – | – | – | – | – | capped at 4096 px per side; check the DPI metadata still reads 600 and the export did not freeze the page |
+| SVG framed | – | – | – | – | – | check the artboard reads 32.4 × 36.3 mm for a 30 mm code and the label font substitutes cleanly |
 | Avery 5160 labels | – | – | – | – | – | print the calibration sheet first |
