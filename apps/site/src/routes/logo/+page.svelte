@@ -5,7 +5,7 @@
 
 <Seo title="QR code with logo" description="Add a logo to a QR code for free, with the error correction raised automatically, a size cap, and a decode check so the printed code still scans." />
 
-<Generator preset="url" lockType={false} styleOpen={true}>
+<Generator preset="url" styleOpen={true}>
 	{#snippet hero()}
 	<h1 class="reveal">A logo in the middle, and it still scans.</h1>
 	<p class="reveal reveal-2 mt-2 max-w-2xl text-lg text-ink-2">Error correction goes to H automatically, the logo is capped at a quarter of the area, and the download unlocks only after the code decodes.</p>

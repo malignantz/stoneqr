@@ -198,54 +198,60 @@
 </script>
 
 <section class="grid gap-4" aria-labelledby="preview-heading">
-	<div class="flex items-center justify-between gap-3">
-		<h2 id="preview-heading" class="text-xl">Preview</h2>
-		{#if design.verify === 'ok'}
-			<span class="badge badge-ok" title="Decoded on your device and matched the content">
-				<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5.5l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
-				Scannable
-			</span>
-		{:else if design.verify === 'fail'}
-			<span class="badge badge-block">Did not decode</span>
-		{:else if design.verify === 'checking'}
-			<span class="badge badge-muted">Checking…</span>
-		{/if}
-	</div>
-
-	<div
-		class="sheet relative mx-auto grid aspect-square w-full max-w-[min(100%,60vw)] grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] place-items-center overflow-hidden p-4 lg:max-w-none"
-		style="background: {design.transparentBg ? 'repeating-conic-gradient(#e6e1d6 0 25%, #f4f0e8 0 50%) 0 0 / 16px 16px' : design.bg}"
-		role="img"
-		aria-label="QR code preview encoding a {describe(design.type)}"
-	>
-		{#if design.halftoneActive && halftoneUrl}
-			<img
-				src={halftoneUrl}
-				alt=""
-				class="h-full w-full object-contain transition-opacity [image-rendering:pixelated]"
-				style="opacity: {halftoneBusy ? 0.5 : 1}"
-			/>
-		{:else if design.halftoneActive && halftoneError}
-			<p class="notice notice-block max-w-[18rem]">{halftoneError}</p>
-		{:else if design.halftoneActive && design.encoded}
-			<p class="text-ink-3">Blending the picture…</p>
-		{:else if svg}
-			<div class="qr-host h-full min-h-0 w-full min-w-0 [&>svg]:h-full [&>svg]:w-full">{@html svg}</div>
-		{:else if design.isEmpty}
-			<div class="grid place-items-center text-center text-ink-3">
-				<svg width="120" height="120" viewBox="0 0 21 21" aria-hidden="true" class="opacity-25">
-					<rect x="0" y="0" width="7" height="7" fill="currentColor" /><rect x="14" y="0" width="7" height="7" fill="currentColor" /><rect x="0" y="14" width="7" height="7" fill="currentColor" />
-					<rect x="2" y="2" width="3" height="3" fill="var(--color-paper)" /><rect x="16" y="2" width="3" height="3" fill="var(--color-paper)" /><rect x="2" y="16" width="3" height="3" fill="var(--color-paper)" />
-				</svg>
-				<p class="mt-3 max-w-[16rem] text-sm">Type something in the content panel and the code appears here.</p>
-			</div>
-		{:else if design.encodeError}
-			<p class="notice notice-block max-w-[18rem]">{design.encodeError}</p>
-		{:else if design.styledError}
-			<p class="notice notice-block max-w-[18rem]">{design.styledError}</p>
-		{:else}
-			<p class="text-ink-3">Rendering…</p>
-		{/if}
+	<!--
+	  The card sits flush with the tops of the Content and Size cards on either side. Its label and
+	  the decode badge live in a caption strip along the bottom, like the ticket on a print proof,
+	  so nothing sits above the code to push it out of line.
+	-->
+	<div class="sheet mx-auto w-full max-w-[min(100%,72vw)] overflow-hidden lg:max-w-none">
+		<div
+			class="relative grid aspect-square w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] place-items-center overflow-hidden p-4"
+			style="background: {design.transparentBg ? 'repeating-conic-gradient(#e6e1d6 0 25%, #f4f0e8 0 50%) 0 0 / 16px 16px' : design.bg}"
+			role="img"
+			aria-label="QR code preview encoding a {describe(design.type)}"
+		>
+			{#if design.halftoneActive && halftoneUrl}
+				<img
+					src={halftoneUrl}
+					alt=""
+					class="h-full w-full object-contain transition-opacity [image-rendering:pixelated]"
+					style="opacity: {halftoneBusy ? 0.5 : 1}"
+				/>
+			{:else if design.halftoneActive && halftoneError}
+				<p class="notice notice-block max-w-[18rem]">{halftoneError}</p>
+			{:else if design.halftoneActive && design.encoded}
+				<p class="text-ink-3">Blending the picture…</p>
+			{:else if svg}
+				<div class="qr-host h-full min-h-0 w-full min-w-0 [&>svg]:h-full [&>svg]:w-full">{@html svg}</div>
+			{:else if design.isEmpty}
+				<div class="grid place-items-center text-center text-ink-3">
+					<svg width="120" height="120" viewBox="0 0 21 21" aria-hidden="true" class="opacity-25">
+						<rect x="0" y="0" width="7" height="7" fill="currentColor" /><rect x="14" y="0" width="7" height="7" fill="currentColor" /><rect x="0" y="14" width="7" height="7" fill="currentColor" />
+						<rect x="2" y="2" width="3" height="3" fill="var(--color-paper)" /><rect x="16" y="2" width="3" height="3" fill="var(--color-paper)" /><rect x="2" y="16" width="3" height="3" fill="var(--color-paper)" />
+					</svg>
+					<p class="mt-3 max-w-[16rem] text-sm">Type something in the content panel and the code appears here.</p>
+				</div>
+			{:else if design.encodeError}
+				<p class="notice notice-block max-w-[18rem]">{design.encodeError}</p>
+			{:else if design.styledError}
+				<p class="notice notice-block max-w-[18rem]">{design.styledError}</p>
+			{:else}
+				<p class="text-ink-3">Rendering…</p>
+			{/if}
+		</div>
+		<div class="flex min-h-10 items-center justify-between gap-3 border-t border-rule px-4 py-2 whitespace-nowrap">
+			<h2 id="preview-heading" class="ticket">Preview</h2>
+			{#if design.verify === 'ok'}
+				<span class="badge badge-ok" title="Decoded on your device and matched the content">
+					<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5.5l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
+					Scannable
+				</span>
+			{:else if design.verify === 'fail'}
+				<span class="badge badge-block">Did not decode</span>
+			{:else if design.verify === 'checking'}
+				<span class="badge badge-muted">Checking…</span>
+			{/if}
+		</div>
 	</div>
 
 	{#if design.verify === 'fail' && design.verifyDetail}

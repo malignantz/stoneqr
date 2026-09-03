@@ -412,6 +412,10 @@ a:hover {
 	.reveal-3 {
 		animation-delay: 160ms;
 	}
+	/* Client-side navigations skip the reveal so the page swap reads as instant. */
+	html[data-navigated] .reveal {
+		animation: none;
+	}
 	@keyframes reveal {
 		from {
 			opacity: 0;

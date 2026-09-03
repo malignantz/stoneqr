@@ -1,11 +1,18 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/state';
+	import { afterNavigate } from '$app/navigation';
 	import Mark from '$lib/components/Mark.svelte';
 	import { NAV, SITE } from '$lib/site';
 
 	let { children } = $props();
 	const current = $derived(page.url.pathname);
+
+	// After the first client-side navigation the hero reveal animation is switched off (app.css),
+	// so moving between pages feels like switching a tab rather than loading a new one.
+	afterNavigate(({ type }) => {
+		if (type !== 'enter') document.documentElement.dataset.navigated = '';
+	});
 </script>
 
 <div class="flex min-h-dvh flex-col">
@@ -15,7 +22,8 @@
 				<Mark size={22} />
 				<span>Stone<span class="text-accent">QR</span></span>
 			</a>
-			<nav aria-label="Primary" class="-mx-1 flex flex-wrap items-center gap-x-1 text-sm">
+			<!-- preload-code=eager fetches every nav route's chunk right after load, so a click needs no network. -->
+			<nav aria-label="Primary" class="-mx-1 flex flex-wrap items-center gap-x-1 text-sm" data-sveltekit-preload-code="eager">
 				{#each NAV as item (item.href)}
 					<a
 						href={item.href}

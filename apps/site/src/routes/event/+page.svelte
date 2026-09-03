@@ -5,7 +5,7 @@
 
 <Seo title="Calendar event QR code" description="Make a QR code that adds an event to the calendar. Free, no sign-up, generated in your browser, with honest notes about which phones support it." />
 
-<Generator preset="event" lockType={true} styleOpen={false}>
+<Generator preset="event" styleOpen={false}>
 	{#snippet hero()}
 	<h1 class="reveal">Add an event to the calendar with one scan.</h1>
 	<p class="reveal reveal-2 mt-2 max-w-2xl text-lg text-ink-2">Encoded as a standard calendar entry with times converted to UTC so they show correctly in any time zone.</p>

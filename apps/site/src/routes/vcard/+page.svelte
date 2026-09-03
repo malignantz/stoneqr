@@ -5,7 +5,7 @@
 
 <Seo title="vCard QR code generator" description="Make a vCard or MeCard QR code for a business card, badge, or email signature. Free, no sign-up, generated in your browser." />
 
-<Generator preset="vcard" lockType={false} styleOpen={false}>
+<Generator preset="vcard" styleOpen={false}>
 	{#snippet hero()}
 	<h1 class="reveal">A contact card people can save in one tap.</h1>
 	<p class="reveal reveal-2 mt-2 max-w-2xl text-lg text-ink-2">Choose vCard for the full set of fields or MeCard for a smaller code. Nothing is uploaded.</p>

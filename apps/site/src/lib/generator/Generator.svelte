@@ -1,5 +1,13 @@
+<script module lang="ts">
+	// One design per browser session. The landing pages (/wifi, /vcard, /event, /logo) mount
+	// this same component, so keeping the state here means a nav click only changes the
+	// preselected type: size, style, and everything typed so far survive the navigation.
+	let shared: Design | undefined;
+</script>
+
 <script lang="ts">
 	import { onMount, untrack, type Snippet } from 'svelte';
+	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import type { PayloadType } from '@stoneqr/engine/payloads';
 	import { Design } from './state.svelte';
@@ -11,12 +19,12 @@
 
 	let {
 		preset = 'url',
-		lockType = false,
 		styleOpen = false,
 		hero
-	}: { preset?: PayloadType; lockType?: boolean; styleOpen?: boolean; hero?: Snippet } = $props();
+	}: { preset?: PayloadType; styleOpen?: boolean; hero?: Snippet } = $props();
 
-	const design = new Design();
+	// Prerendering gets a fresh instance per page so no state leaks between routes at build time.
+	const design = browser ? (shared ??= new Design()) : new Design();
 	design.type = untrack(() => preset);
 
 	// Basic shows the controls most people need; Advanced shows everything. Remembered per browser.
@@ -48,11 +56,14 @@
 	const inUse = $derived(design.advancedInUse);
 </script>
 
-<!-- The page's heading sits on the same row as the control toggle, so the tool starts right under the fold. -->
+<!-- On wide screens the page's heading shares a row with the control toggle, so the tool starts right under the fold. -->
 <div class="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
-	<div class="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-		<div class="min-w-0 flex-1">{@render hero?.()}</div>
-		<div class="flex items-center gap-3 pb-1">
+	<!-- Below lg the heading owns the full width and the toggle sits under it. Sharing the row is
+	     an lg-and-up rule rather than a flex-basis guess, so a heading can never collapse into a
+	     narrow column next to the toggle on a phone. -->
+	<div class="flex flex-col items-start gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-x-8">
+		<div class="w-full min-w-0 lg:flex-1">{@render hero?.()}</div>
+		<div class="flex shrink-0 items-center gap-3 lg:pb-1">
 			<span class="ticket">Controls</span>
 			<div class="seg" role="group" aria-label="Control set">
 				<button type="button" aria-pressed={!advanced} onclick={() => setMode(false)}>Basic</button>
@@ -70,7 +81,7 @@
 
 <div class="mx-auto grid max-w-7xl gap-6 px-4 pt-5 pb-6 sm:px-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)_minmax(0,22rem)] lg:gap-8 lg:pb-8">
 	<div class="sheet order-2 p-5 lg:order-1 lg:p-6">
-		<ContentForm {design} {lockType} />
+		<ContentForm {design} />
 		<hr class="rule my-6" />
 		<StylePanel {design} open={styleOpen} {advanced} />
 		<hr class="rule my-6" />

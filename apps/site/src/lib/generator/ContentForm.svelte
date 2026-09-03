@@ -2,7 +2,7 @@
 	import { PAYLOAD_TYPES, type PayloadType } from '@stoneqr/engine/payloads';
 	import type { Design } from './state.svelte';
 
-	let { design, lockType = false }: { design: Design; lockType?: boolean } = $props();
+	let { design }: { design: Design } = $props();
 
 	const meta = $derived(PAYLOAD_TYPES.find((t) => t.id === design.type)!);
 	const contactTypes: PayloadType[] = ['vcard', 'mecard'];
@@ -16,27 +16,25 @@
 		{/if}
 	</div>
 
-	{#if !lockType}
-		<div class="field">
-			<span class="label">Type</span>
-			<div class="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Content type">
-				{#each PAYLOAD_TYPES as t (t.id)}
-					<button
-						type="button"
-						role="radio"
-						aria-checked={design.type === t.id}
-						class="rounded border px-2.5 py-1 text-sm transition-colors {design.type === t.id
-							? 'border-ink bg-ink text-paper'
-							: 'border-rule-2 bg-white text-ink-2 hover:border-ink-3'}"
-						onclick={() => design.reset(t.id)}
-					>
-						{t.label}
-					</button>
-				{/each}
-			</div>
-			<p class="hint">{meta.description}</p>
+	<div class="field">
+		<span class="label">Type</span>
+		<div class="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Content type">
+			{#each PAYLOAD_TYPES as t (t.id)}
+				<button
+					type="button"
+					role="radio"
+					aria-checked={design.type === t.id}
+					class="rounded border px-2.5 py-1 text-sm transition-colors {design.type === t.id
+						? 'border-ink bg-ink text-paper'
+						: 'border-rule-2 bg-white text-ink-2 hover:border-ink-3'}"
+					onclick={() => design.reset(t.id)}
+				>
+					{t.label}
+				</button>
+			{/each}
 		</div>
-	{/if}
+		<p class="hint">{meta.description}</p>
+	</div>
 
 	{#if design.shortUrl}
 		<div class="notice notice-info">
