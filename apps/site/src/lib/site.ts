@@ -3,7 +3,7 @@ export const SITE = {
 	url: 'https://stoneqr.app',
 	tagline: 'QR codes set in stone. Generated in your browser, never expire.',
 	promise: 'Generated on your device. Never expires. Nothing was uploaded.',
-	repo: 'https://github.com/garrettholmes/stoneqr',
+	repo: 'https://github.com/malignantz/stoneqr',
 	signupcity: 'https://signupcity.app'
 } as const;
 
