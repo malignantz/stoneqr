@@ -4,17 +4,17 @@
 	import { SITE } from '$lib/site';
 </script>
 
-<Seo title={SITE.name} description="Free QR code generator with no sign-up and no expiry. Codes are generated in your browser and never uploaded. Vector SVG, PDF, and EPS exports, print-size calculator, logos, and decode verification." />
+<Seo title={SITE.name} description="Free QR code generator with no sign-up and no expiry. Codes are generated in your browser and never uploaded. Vector SVG, PDF, and EPS exports, print-size calculator, logos, Photo QR codes, and decode verification." />
 
-<div class="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
+<Generator>
+	{#snippet hero()}
 	<h1 class="reveal">QR codes set in stone.</h1>
 	<p class="reveal reveal-2 mt-2 max-w-2xl text-lg text-ink-2">
 		Generated in your browser, never uploaded, never expire. Vector files with real millimetre sizes, a
 		print-size check, and a decode test before every download.
 	</p>
-</div>
-
-<Generator />
+	{/snippet}
+</Generator>
 
 <section class="mx-auto max-w-7xl px-4 sm:px-6">
 	<div class="prose">
@@ -37,8 +37,8 @@
 		<p>
 			Links, <a href="/wifi">WiFi networks</a>, <a href="/vcard">contact cards</a>, email, SMS, phone
 			numbers, map pins, and <a href="/event">calendar events</a>, formatted the way phone cameras
-			expect. Add a <a href="/logo">logo</a>, choose colours with a contrast check, or add a frame
-			with a call to action.
+			expect. Add a <a href="/logo">logo</a>, choose colours with a contrast check, add a frame with a
+			call to action, or blend a photo into the code itself with Photo QR.
 		</p>
 	</div>
 </section>

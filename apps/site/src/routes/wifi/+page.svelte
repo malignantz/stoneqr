@@ -5,12 +5,12 @@
 
 <Seo title="WiFi QR code generator" description="Make a WiFi QR code that lets guests join your network by pointing their camera at it. Free, no sign-up, generated in your browser so the password is never uploaded." />
 
-<div class="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
+<Generator preset="wifi" lockType={true} styleOpen={false}>
+	{#snippet hero()}
 	<h1 class="reveal">Share your WiFi without spelling out the password.</h1>
 	<p class="reveal reveal-2 mt-2 max-w-2xl text-lg text-ink-2">Guests point their camera, tap the prompt, and they are on. The password never leaves this page.</p>
-</div>
-
-<Generator preset="wifi" lockType={true} styleOpen={false} />
+	{/snippet}
+</Generator>
 
 <section class="mx-auto max-w-7xl px-4 sm:px-6">
 	<div class="prose">

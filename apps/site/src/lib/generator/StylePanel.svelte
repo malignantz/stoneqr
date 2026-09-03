@@ -64,7 +64,7 @@
 	<summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 select-none">
 		<h2 class="text-xl">Style</h2>
 		<span class="flex items-center gap-3">
-			{#if off}<span class="badge badge-warn">Off: halftone</span>{/if}
+			{#if off}<span class="badge badge-warn">Off: photo</span>{/if}
 			<span class="ticket transition-transform group-open:rotate-90">▶</span>
 		</span>
 	</summary>
@@ -72,8 +72,8 @@
 	<div class="mt-4 grid gap-5">
 		{#if off}
 			<p class="notice notice-info">
-				The halftone picture replaces these settings. Colours, shapes, the logo, and the frame come back when you remove
-				the picture or untick "Blend the picture into the code".
+				The photo replaces these settings. Colours, shapes, the logo, and the frame come back when you remove the photo
+				or untick "Blend the picture into the code".
 			</p>
 		{/if}
 

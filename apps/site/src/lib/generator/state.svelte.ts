@@ -116,7 +116,7 @@ export class Design {
 	frameColor = $state('#000000');
 	frameTextColor = $state('#ffffff');
 
-	// Artistic (halftone) mode, plan §7. The picture is decoded and rendered on the device.
+	// Photo QR (halftone) mode, plan §7. Shown to users as "Photo QR"; the code keeps the technique's name. The picture is decoded and rendered on the device.
 	halftone = $state(false);
 	halftoneImage = $state<string | undefined>(undefined);
 	halftoneImageName = $state('');
@@ -167,7 +167,11 @@ export class Design {
 	 */
 	advancedInUse = $derived.by((): string[] => {
 		const out: string[] = [];
-		if (this.halftoneActive) out.push('halftone picture');
+		if (this.halftoneActive) {
+			if (this.halftoneDotScale !== 0.4) out.push('photo dot size');
+			if (this.halftoneDim !== 0) out.push('photo fade');
+			if (this.halftoneContrast !== 1) out.push('photo contrast');
+		}
 		if (this.transparentBg) out.push('transparent background');
 		if (this.cornerSquare !== 'square' || this.cornerDot !== 'square') out.push('corner shapes');
 		if (this.gradient !== 'none') out.push('gradient');

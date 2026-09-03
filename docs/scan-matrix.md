@@ -43,14 +43,14 @@ The frame sits outside the quiet zone; the print width is the code, the artwork 
 | 20 mm | – | – | – | |
 | 30 mm | – | – | – | |
 
-## Halftone (dotScale 0.4, version ≥ 7)
+## Halftone (dotScale 0.4, version ≥ 7) — "Photo QR" in the interface
 
 | Size | iPhone Camera | Android Camera | Google Lens | Notes |
 |---|---|---|---|---|
 | 30 mm | – | – | – | |
 | 50 mm | – | – | – | |
 
-## Halftone, zoomed 2× and shifted 25% (busy crop)
+## Halftone, zoomed 2× and shifted 25% (busy crop) — "Photo QR" in the interface
 
 | Size | iPhone Camera | Android Camera | Google Lens | Notes |
 |---|---|---|---|---|

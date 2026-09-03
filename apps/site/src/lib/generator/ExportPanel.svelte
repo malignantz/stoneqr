@@ -42,7 +42,7 @@
 		{ label: 'Sign 250', mm: 250 }
 	];
 
-	const halftoneOnly = 'Halftone exports as PNG or SVG';
+	const halftoneOnly = 'Photo QR downloads as PNG or SVG';
 	const HALFTONE_MAX_SIDE = 4096;
 
 	/**
@@ -299,7 +299,7 @@
 			</div>
 			<div class="field">
 				<label for="minv">Min version</label>
-				<input id="minv" class="input num" type="number" min="1" max="40" step="1" bind:value={design.minVersion} disabled={design.halftoneActive} title={design.halftoneActive ? 'Halftone sets its own minimum version' : ''} />
+				<input id="minv" class="input num" type="number" min="1" max="40" step="1" bind:value={design.minVersion} disabled={design.halftoneActive} title={design.halftoneActive ? 'Photo QR sets its own minimum version' : ''} />
 			</div>
 			<div class="field">
 				<label for="mask">Mask</label>

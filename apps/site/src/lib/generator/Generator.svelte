@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount, untrack, type Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import type { PayloadType } from '@stoneqr/engine/payloads';
 	import { Design } from './state.svelte';
@@ -9,7 +9,12 @@
 	import HalftonePanel from './HalftonePanel.svelte';
 	import ExportPanel from './ExportPanel.svelte';
 
-	let { preset = 'url', lockType = false, styleOpen = false }: { preset?: PayloadType; lockType?: boolean; styleOpen?: boolean } = $props();
+	let {
+		preset = 'url',
+		lockType = false,
+		styleOpen = false,
+		hero
+	}: { preset?: PayloadType; lockType?: boolean; styleOpen?: boolean; hero?: Snippet } = $props();
 
 	const design = new Design();
 	design.type = untrack(() => preset);
@@ -43,12 +48,16 @@
 	const inUse = $derived(design.advancedInUse);
 </script>
 
-<div class="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:pt-8">
-	<div class="flex flex-wrap items-center justify-end gap-3">
-		<span class="ticket">Controls</span>
-		<div class="seg" role="group" aria-label="Control set">
-			<button type="button" aria-pressed={!advanced} onclick={() => setMode(false)}>Basic</button>
-			<button type="button" aria-pressed={advanced} onclick={() => setMode(true)}>Advanced</button>
+<!-- The page's heading sits on the same row as the control toggle, so the tool starts right under the fold. -->
+<div class="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
+	<div class="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+		<div class="min-w-0 flex-1">{@render hero?.()}</div>
+		<div class="flex items-center gap-3 pb-1">
+			<span class="ticket">Controls</span>
+			<div class="seg" role="group" aria-label="Control set">
+				<button type="button" aria-pressed={!advanced} onclick={() => setMode(false)}>Basic</button>
+				<button type="button" aria-pressed={advanced} onclick={() => setMode(true)}>Advanced</button>
+			</div>
 		</div>
 	</div>
 	{#if !advanced && inUse.length}
@@ -59,15 +68,13 @@
 	{/if}
 </div>
 
-<div class="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)_minmax(0,22rem)] lg:gap-8 lg:py-8">
+<div class="mx-auto grid max-w-7xl gap-6 px-4 pt-5 pb-6 sm:px-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)_minmax(0,22rem)] lg:gap-8 lg:pb-8">
 	<div class="sheet order-2 p-5 lg:order-1 lg:p-6">
 		<ContentForm {design} {lockType} />
 		<hr class="rule my-6" />
 		<StylePanel {design} open={styleOpen} {advanced} />
-		{#if advanced}
-			<hr class="rule my-6" />
-			<HalftonePanel {design} open={design.halftoneActive} />
-		{/if}
+		<hr class="rule my-6" />
+		<HalftonePanel {design} open={design.halftoneActive} {advanced} />
 	</div>
 	<div class="order-1 lg:order-2 lg:sticky lg:top-6 lg:self-start">
 		<Preview {design} />

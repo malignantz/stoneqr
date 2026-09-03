@@ -2,7 +2,7 @@
 	import { IMAGE_ZOOM_MAX, IMAGE_ZOOM_MIN, IMAGE_OFFSET_MAX } from '@stoneqr/engine';
 	import type { Design } from './state.svelte';
 
-	let { design, open = false }: { design: Design; open?: boolean } = $props();
+	let { design, open = false, advanced = false }: { design: Design; open?: boolean; advanced?: boolean } = $props();
 
 	let imageError = $state('');
 	const cropChanged = $derived(design.halftoneZoom !== 1 || design.halftoneOffsetX !== 0 || design.halftoneOffsetY !== 0);
@@ -55,7 +55,7 @@
 
 <details class="group" {open}>
 	<summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 select-none">
-		<h2 class="text-xl">Artistic (halftone)</h2>
+		<h2 class="text-xl">Photo QR</h2>
 		<span class="ticket transition-transform group-open:rotate-90">▶</span>
 	</summary>
 
@@ -79,9 +79,9 @@
 					accept="image/png,image/jpeg,image/webp"
 					class="block w-full text-sm file:mr-3 file:rounded file:border file:border-rule-2 file:bg-white file:px-3 file:py-1.5 file:text-sm"
 					onchange={onImage}
-					aria-label="Upload a picture for the halftone"
+					aria-label="Upload a photo to blend into the code"
 				/>
-				<p class="hint">PNG, JPEG, or WebP. The picture stays in your browser.</p>
+				<p class="hint">Blend a photo into the code itself. PNG, JPEG, or WebP; the picture stays in your browser.</p>
 			{/if}
 			{#if imageError}<p class="notice notice-block">{imageError}</p>{/if}
 		</div>
@@ -112,7 +112,8 @@
 			</div>
 
 			<div class="field">
-				<span class="label">Picture</span>
+				<span class="label">Look</span>
+				{#if advanced}
 				<label class="flex items-center gap-3 text-sm">
 					Dot size
 					<input type="range" min="0.25" max="0.7" step="0.05" bind:value={design.halftoneDotScale} aria-label="Dot size" />
@@ -128,6 +129,7 @@
 					<input type="range" min="0.6" max="1.6" step="0.05" bind:value={design.halftoneContrast} aria-label="Picture contrast" />
 					<span class="num w-14">{design.halftoneContrast.toFixed(2)}×</span>
 				</label>
+				{/if}
 				<label class="flex items-center gap-2 text-sm">
 					<input type="checkbox" bind:checked={design.halftoneGrayscale} /> Black and white picture
 				</label>
@@ -138,8 +140,8 @@
 			{/if}
 			{#if design.halftoneOverridesStyle}
 				<p class="notice notice-info">
-					Halftone replaces the Style settings. Dot shapes, gradients, the logo, and the frame are ignored while a picture is
-					blended in. Turn the picture off to use them.
+					The photo replaces the Style settings. Dot shapes, gradients, the logo, and the frame are ignored while a photo is
+					blended in. Turn the photo off to use them.
 				</p>
 			{/if}
 		{/if}
@@ -148,6 +150,6 @@
 			Error correction is forced to H and the code is enlarged to at least version 7 so the picture shows through. Every change
 			is decoded on your device before download unlocks.
 		</p>
-		<p class="hint">Halftone codes download as PNG or SVG. Bigger dots and a faded picture scan more reliably in print.</p>
+		<p class="hint">Photo codes download as PNG or SVG. {advanced ? 'Bigger dots and a faded picture scan more reliably in print.' : 'If a photo is hard to read in print, Advanced has dot size, fade, and contrast.'}</p>
 	</div>
 </details>
