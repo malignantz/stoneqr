@@ -1,0 +1,40 @@
+{
+  "name": "@stoneqr/engine",
+  "version": "0.1.0",
+  "description": "Browser-only QR code engine: encode, payloads, sizing math, print-safe exports, decode verification.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./payloads": "./src/payloads/index.ts",
+    "./sizing": "./src/sizing.ts",
+    "./render/svg": "./src/render/svg.ts",
+    "./render/halftone": "./src/render/halftone.ts",
+    "./export/pdf": "./src/export/pdf.ts",
+    "./export/eps": "./src/export/eps.ts",
+    "./export/png": "./src/export/png.ts",
+    "./verify": "./src/verify.ts",
+    "./labels": "./src/labels.ts"
+  },
+  "files": ["src"],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@paulmillr/qr": "^0.3.0",
+    "fflate": "^0.8.3",
+    "jsqr": "^1.4.0",
+    "pdf-lib": "^1.17.1",
+    "uqr": "^0.1.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  },
+  "keywords": ["qr", "qrcode", "svg", "pdf", "eps", "print", "browser"]
+}

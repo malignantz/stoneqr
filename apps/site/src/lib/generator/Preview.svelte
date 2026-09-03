@@ -1,0 +1,260 @@
+<script lang="ts">
+	import { rasterize, verifyRasterAsync, type RasterImage } from '@stoneqr/engine';
+	import { renderStyled } from '$lib/styled';
+	import { svgToCanvas, canvasImageData } from '$lib/svg-raster';
+	import { SITE } from '$lib/site';
+	import { describe, type Design } from './state.svelte';
+
+	let { design }: { design: Design } = $props();
+
+	const svg = $derived(design.styled ? design.styledSvg : design.plainSvg);
+
+	// Artistic (halftone) rendering, plan §7. Takes precedence over plain and styled output.
+	// The picture is decoded once per data URL and never leaves the browser.
+	let halftoneUrl = $state('');
+	let halftoneError = $state('');
+	let halftoneBusy = $state(false);
+	let imageCache: { key: string; raster: RasterImage } | null = null;
+	let halftoneSeq = 0;
+
+	async function imageFor(dataUrl: string): Promise<RasterImage> {
+		if (imageCache?.key === dataUrl) return imageCache.raster;
+		const { loadImageRaster } = await import('$lib/halftone');
+		const raster = await loadImageRaster(dataUrl);
+		imageCache = { key: dataUrl, raster };
+		return raster;
+	}
+
+	$effect(() => {
+		const qr = design.encoded;
+		const payload = design.payload;
+		const image = design.halftoneImage;
+		if (!design.halftoneActive || !qr || !payload || !image) {
+			design.halftoneRaster = null;
+			design.halftoneOpts = null;
+			design.halftoneNote = '';
+			halftoneError = '';
+			halftoneBusy = false;
+			return;
+		}
+		const opts = {
+			pxPerModule: 8,
+			quietZone: design.quietZone,
+			dotScale: design.halftoneDotScale,
+			imageDim: design.halftoneDim,
+			grayscale: design.halftoneGrayscale,
+			contrast: design.halftoneContrast
+		};
+		design.verify = 'checking';
+		halftoneBusy = true;
+		const seq = ++halftoneSeq;
+		const t = setTimeout(async () => {
+			try {
+				const [{ halftoneWithFallback }, { rasterToPngBlob }, source] = await Promise.all([
+					import('@stoneqr/engine'),
+					import('$lib/halftone'),
+					imageFor(image)
+				]);
+				const result = halftoneWithFallback(qr, source, payload, opts);
+				if (seq !== halftoneSeq) return;
+				design.halftoneRaster = result.raster;
+				design.halftoneOpts = result.opts;
+				design.halftoneNote = result.note;
+				design.verify = result.ok ? 'ok' : 'fail';
+				design.verifyDetail = result.ok ? '' : result.note;
+				halftoneError = '';
+				const url = URL.createObjectURL(await rasterToPngBlob(result.raster));
+				if (seq !== halftoneSeq) {
+					URL.revokeObjectURL(url);
+					return;
+				}
+				if (halftoneUrl) URL.revokeObjectURL(halftoneUrl);
+				halftoneUrl = url;
+			} catch (e) {
+				if (seq !== halftoneSeq) return;
+				halftoneError = e instanceof Error ? e.message : String(e);
+				design.verify = 'fail';
+				design.verifyDetail = halftoneError;
+			} finally {
+				if (seq === halftoneSeq) halftoneBusy = false;
+			}
+		}, 300);
+		return () => clearTimeout(t);
+	});
+
+	// Drop the object URL when the picture goes away or the component unmounts.
+	$effect(() => {
+		if (design.halftoneActive) return;
+		if (halftoneUrl) {
+			URL.revokeObjectURL(halftoneUrl);
+			halftoneUrl = '';
+		}
+	});
+	$effect(() => () => {
+		if (halftoneUrl) URL.revokeObjectURL(halftoneUrl);
+	});
+
+	// Styled rendering: re-render when any style input changes (lazy chunk loads on first use).
+	let styledSeq = 0;
+	$effect(() => {
+		if (!design.styled || !design.encoded) {
+			design.styledSvg = '';
+			design.styledError = '';
+			return;
+		}
+		const opts = {
+			payload: design.payload,
+			ecc: design.ecc,
+			version: design.encoded.version,
+			quietZone: design.quietZone,
+			fg: design.fg,
+			bg: design.bgColor,
+			dot: design.dot,
+			cornerSquare: design.cornerSquare,
+			cornerDot: design.cornerDot,
+			gradient: design.gradient,
+			gradientTo: design.gradientTo,
+			gradientAngleDeg: design.gradientAngleDeg,
+			logo: design.logo,
+			logoSize: design.logoSize,
+			logoKnockout: design.logoKnockout,
+			logoMargin: design.logoMargin,
+			frame: { enabled: design.frameEnabled, text: design.frameText, color: design.frameColor, textColor: design.frameTextColor }
+		};
+		const widthMm = design.widthMm;
+		const seq = ++styledSeq;
+		const t = setTimeout(async () => {
+			try {
+				const r = await renderStyled(opts, widthMm);
+				if (seq !== styledSeq) return;
+				design.styledSvg = r.svg;
+				design.styledError = '';
+			} catch (e) {
+				if (seq !== styledSeq) return;
+				design.styledError = e instanceof Error ? e.message : String(e);
+			}
+		}, 60);
+		return () => clearTimeout(t);
+	});
+
+	// Verification: debounced 300 ms; plain codes decode from a canvas-free raster, styled from a canvas.
+	let verifySeq = 0;
+	$effect(() => {
+		const qr = design.encoded;
+		const payload = design.payload;
+		const styled = design.styled;
+		const styledSvg = design.styledSvg;
+		const bg = design.bgColor;
+		const fg = design.fg;
+		if (design.halftoneActive) return; // the halftone effect above owns verification
+		if (!qr || !payload || (styled && !styledSvg)) {
+			design.verify = 'idle';
+			return;
+		}
+		design.verify = 'checking';
+		const seq = ++verifySeq;
+		const t = setTimeout(async () => {
+			try {
+				let ok: boolean;
+				if (!styled) {
+					const px = 8;
+					const img = rasterize(qr, { pxPerModule: px, quietZone: design.quietZone, fg: hexToRgb(fg), bg: bg === 'transparent' ? [255, 255, 255] : hexToRgb(bg) });
+					ok = (await verifyRasterAsync(img, payload)).ok;
+				} else {
+					const side = (qr.size + 2 * design.quietZone) * 8;
+					const canvas = await svgToCanvas(styledSvg, side, bg === 'transparent' ? '#ffffff' : undefined);
+					const data = canvasImageData(canvas);
+					ok = (await verifyRasterAsync(data, payload)).ok;
+					if (!ok) {
+						// Second attempt at a larger scale, matching a typical phone camera's oversampling.
+						const c2 = await svgToCanvas(styledSvg, side * 2, bg === 'transparent' ? '#ffffff' : undefined);
+						ok = (await verifyRasterAsync(canvasImageData(c2), payload)).ok;
+					}
+				}
+				if (seq !== verifySeq) return;
+				design.verify = ok ? 'ok' : 'fail';
+				design.verifyDetail = ok ? '' : styled ? 'The styled code did not decode. Try a larger logo margin, a smaller logo, plainer dots, or more contrast.' : 'This code did not decode. Increase contrast or the quiet zone.';
+			} catch (e) {
+				if (seq !== verifySeq) return;
+				design.verify = 'fail';
+				design.verifyDetail = e instanceof Error ? e.message : String(e);
+			}
+		}, 300);
+		return () => clearTimeout(t);
+	});
+
+	function hexToRgb(hex: string): [number, number, number] {
+		const m = hex.replace('#', '');
+		const n = m.length === 3 ? m.split('').map((c) => c + c).join('') : m.slice(0, 6);
+		const v = parseInt(n, 16);
+		if (Number.isNaN(v)) return [0, 0, 0];
+		return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+	}
+</script>
+
+<section class="grid gap-4" aria-labelledby="preview-heading">
+	<div class="flex items-center justify-between gap-3">
+		<h2 id="preview-heading" class="text-xl">Preview</h2>
+		{#if design.verify === 'ok'}
+			<span class="badge badge-ok" title="Decoded on your device and matched the content">
+				<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5.5l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
+				Scannable
+			</span>
+		{:else if design.verify === 'fail'}
+			<span class="badge badge-block">Did not decode</span>
+		{:else if design.verify === 'checking'}
+			<span class="badge badge-muted">Checking…</span>
+		{/if}
+	</div>
+
+	<div
+		class="sheet relative mx-auto grid aspect-square w-full max-w-[min(100%,60vw)] place-items-center overflow-hidden p-4 lg:max-w-none"
+		style="background: {design.transparentBg ? 'repeating-conic-gradient(#e6e1d6 0 25%, #f4f0e8 0 50%) 0 0 / 16px 16px' : design.bg}"
+		role="img"
+		aria-label="QR code preview encoding a {describe(design.type)}"
+	>
+		{#if design.halftoneActive && halftoneUrl}
+			<img
+				src={halftoneUrl}
+				alt=""
+				class="h-full w-full object-contain transition-opacity [image-rendering:pixelated]"
+				style="opacity: {halftoneBusy ? 0.5 : 1}"
+			/>
+		{:else if design.halftoneActive && halftoneError}
+			<p class="notice notice-block max-w-[18rem]">{halftoneError}</p>
+		{:else if design.halftoneActive && design.encoded}
+			<p class="text-ink-3">Blending the picture…</p>
+		{:else if svg}
+			<div class="qr-host h-full w-full [&>svg]:h-full [&>svg]:w-full">{@html svg}</div>
+		{:else if design.isEmpty}
+			<div class="grid place-items-center text-center text-ink-3">
+				<svg width="120" height="120" viewBox="0 0 21 21" aria-hidden="true" class="opacity-25">
+					<rect x="0" y="0" width="7" height="7" fill="currentColor" /><rect x="14" y="0" width="7" height="7" fill="currentColor" /><rect x="0" y="14" width="7" height="7" fill="currentColor" />
+					<rect x="2" y="2" width="3" height="3" fill="var(--color-paper)" /><rect x="16" y="2" width="3" height="3" fill="var(--color-paper)" /><rect x="2" y="16" width="3" height="3" fill="var(--color-paper)" />
+				</svg>
+				<p class="mt-3 max-w-[16rem] text-sm">Type something in the content panel and the code appears here.</p>
+			</div>
+		{:else if design.encodeError}
+			<p class="notice notice-block max-w-[18rem]">{design.encodeError}</p>
+		{:else if design.styledError}
+			<p class="notice notice-block max-w-[18rem]">{design.styledError}</p>
+		{:else}
+			<p class="text-ink-3">Rendering…</p>
+		{/if}
+	</div>
+
+	{#if design.verify === 'fail' && design.verifyDetail}
+		<p class="notice notice-block" role="alert">{design.verifyDetail}</p>
+	{/if}
+
+	{#if design.encoded}
+		<dl class="grid grid-cols-4 gap-2 text-center">
+			<div><dt class="ticket">Version</dt><dd class="num">{design.encoded.version}</dd></div>
+			<div><dt class="ticket">Modules</dt><dd class="num">{design.encoded.size}</dd></div>
+			<div><dt class="ticket">ECC</dt><dd class="num">{design.ecc}</dd></div>
+			<div><dt class="ticket">Module</dt><dd class="num">{design.moduleMm.toFixed(2)} mm</dd></div>
+		</dl>
+	{/if}
+
+	<p class="text-center text-xs text-ink-3">{SITE.promise}</p>
+</section>

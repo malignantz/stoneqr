@@ -1,0 +1,19 @@
+{
+  "name": "stoneqr",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --cwd apps/site dev",
+    "build": "bun run --cwd packages/engine build && bun run --cwd apps/site build",
+    "test": "bun run --cwd packages/engine test",
+    "check": "bun run --cwd apps/site check",
+    "deploy": "./deploy.sh",
+    "budget": "node scripts/budget.mjs apps/site/build"
+  },
+  "packageManager": "bun@1.4.0"
+}

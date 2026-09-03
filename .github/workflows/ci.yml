@@ -1,0 +1,19 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.0'
+      - run: bun install --frozen-lockfile
+      - run: bun run --cwd packages/engine typecheck
+      - run: bun run --cwd packages/engine test
+      - run: bun run --cwd apps/site check
+      - run: bun run --cwd apps/site build
+      - run: node scripts/budget.mjs apps/site/build

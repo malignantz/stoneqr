@@ -1,0 +1,345 @@
+/**
+ * The single design state object for the generator (plan §4: no global store beyond this).
+ * Everything derives from it: payload string, encoded matrix, plain SVG, sizing assessment.
+ */
+import {
+	encode,
+	halftoneVersionFor,
+	renderSvg,
+	assess,
+	summary,
+	moduleMm,
+	toMm,
+	LOGO_BLOCK_RATIO,
+	type Ecc,
+	type EncodedQr,
+	type HalftoneOptions,
+	type LengthUnit,
+	type RasterImage,
+	type Warning
+} from '@stoneqr/engine';
+import { payloads, PayloadError, wifiWarnings, type PayloadType } from '@stoneqr/engine/payloads';
+import type { CornerDotStyle, CornerSquareStyle, DotStyle, GradientKind } from '$lib/styled';
+
+export interface Fields {
+	url: { url: string };
+	text: { text: string };
+	wifi: { ssid: string; password: string; auth: 'WPA' | 'WEP' | 'nopass'; hidden: boolean };
+	vcard: VcardFields;
+	mecard: VcardFields;
+	email: { to: string; subject: string; body: string };
+	sms: { to: string; body: string; scheme: 'sms' | 'smsto' };
+	tel: { number: string };
+	geo: { lat: string; lng: string; query: string };
+	event: { summary: string; start: string; end: string; location: string; description: string; allDay: boolean };
+}
+export interface VcardFields {
+	firstName: string;
+	lastName: string;
+	org: string;
+	title: string;
+	mobile: string;
+	work: string;
+	email: string;
+	url: string;
+	street: string;
+	city: string;
+	region: string;
+	postal: string;
+	country: string;
+	note: string;
+}
+
+const emptyVcard = (): VcardFields => ({
+	firstName: '', lastName: '', org: '', title: '', mobile: '', work: '', email: '', url: '',
+	street: '', city: '', region: '', postal: '', country: '', note: ''
+});
+
+export function defaultFields(): Fields {
+	const now = new Date();
+	now.setMinutes(0, 0, 0);
+	now.setHours(now.getHours() + 1);
+	const toLocal = (d: Date) => {
+		const p = (n: number) => String(n).padStart(2, '0');
+		return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+	};
+	const end = new Date(now.getTime() + 60 * 60 * 1000);
+	return {
+		url: { url: '' },
+		text: { text: '' },
+		wifi: { ssid: '', password: '', auth: 'WPA', hidden: false },
+		vcard: emptyVcard(),
+		mecard: emptyVcard(),
+		email: { to: '', subject: '', body: '' },
+		sms: { to: '', body: '', scheme: 'sms' },
+		tel: { number: '' },
+		geo: { lat: '', lng: '', query: '' },
+		event: { summary: '', start: toLocal(now), end: toLocal(end), location: '', description: '', allDay: false }
+	};
+}
+
+export type VerifyState = 'idle' | 'checking' | 'ok' | 'fail';
+
+export class Design {
+	type = $state<PayloadType>('url');
+	fields = $state<Fields>(defaultFields());
+
+	// Encoding
+	eccChoice = $state<Ecc>('M');
+	minVersion = $state(1);
+	mask = $state<number | 'auto'>('auto');
+	quietZone = $state(4);
+
+	// Physical size
+	width = $state(30);
+	unit = $state<LengthUnit>('mm');
+	scanDistanceM = $state<number | null>(null);
+	dpi = $state(300);
+
+	// Style
+	fg = $state('#000000');
+	bg = $state('#ffffff');
+	transparentBg = $state(false);
+	dot = $state<DotStyle>('square');
+	cornerSquare = $state<CornerSquareStyle>('square');
+	cornerDot = $state<CornerDotStyle>('square');
+	gradient = $state<GradientKind>('none');
+	gradientTo = $state('#1f6f63');
+	gradientAngleDeg = $state(45);
+	logo = $state<string | undefined>(undefined);
+	logoName = $state('');
+	logoSize = $state(0.35); // fraction of width; area ≈ logoSize²
+	logoKnockout = $state(true);
+	logoMargin = $state(1);
+	frameEnabled = $state(false);
+	frameText = $state('Scan me');
+	frameColor = $state('#000000');
+	frameTextColor = $state('#ffffff');
+
+	// Artistic (halftone) mode, plan §7. The picture is decoded and rendered on the device.
+	halftone = $state(false);
+	halftoneImage = $state<string | undefined>(undefined);
+	halftoneImageName = $state('');
+	halftoneDotScale = $state(0.4);
+	halftoneDim = $state(0);
+	halftoneGrayscale = $state(false);
+	halftoneContrast = $state(1);
+	/** The verified raster from the preview, reused by the export panel. */
+	halftoneRaster = $state<RasterImage | null>(null);
+	/** The option set that actually decoded, so exports re-render with the same settings. */
+	halftoneOpts = $state<HalftoneOptions | null>(null);
+	/** Plain-language note when the fallback ladder had to change something. */
+	halftoneNote = $state('');
+
+	// Dynamic hand-off
+	shortUrl = $state<string | null>(null);
+
+	/** True when the artistic renderer owns the preview; it takes precedence over the styled one. */
+	halftoneActive = $derived(this.halftone && !!this.halftoneImage);
+
+	/** Effective ECC: forced to H whenever a logo or a halftone picture is present. */
+	ecc = $derived<Ecc>(this.logo || this.halftoneActive ? 'H' : this.eccChoice);
+	bgColor = $derived(this.transparentBg ? 'transparent' : this.bg);
+	logoAreaRatio = $derived(this.logo && !this.halftoneActive ? this.logoSize * this.logoSize : 0);
+	widthMm = $derived(toMm(this.width, this.unit));
+
+	/** Style controls the user has touched, whether or not the styled renderer is in charge. */
+	styleRequested = $derived(
+		this.dot !== 'square' ||
+			this.cornerSquare !== 'square' ||
+			this.cornerDot !== 'square' ||
+			this.gradient !== 'none' ||
+			!!this.logo ||
+			this.frameEnabled
+	);
+	/** True when anything beyond plain black squares is requested; then the lazy styled renderer is used. */
+	styled = $derived(!this.halftoneActive && this.styleRequested);
+	/** Halftone is on and would silently drop style choices; the panel says so. */
+	halftoneOverridesStyle = $derived(this.halftoneActive && this.styleRequested);
+
+	payloadResult = $derived.by(() => buildPayload(this.type, this.fields, this.shortUrl));
+	payload = $derived(this.payloadResult.payload);
+	payloadError = $derived(this.payloadResult.error);
+	payloadWarnings = $derived(this.payloadResult.warnings);
+	isEmpty = $derived(this.payloadResult.empty);
+
+	/** Halftone needs a big symbol for the picture to read (plan §7 step 1). */
+	effectiveMinVersion = $derived(
+		this.halftoneActive && this.payload ? halftoneVersionFor(this.payload) : this.minVersion
+	);
+
+	qr = $derived.by((): { qr: EncodedQr | null; error: string | null } => {
+		if (!this.payload) return { qr: null, error: null };
+		try {
+			return {
+				qr: encode(this.payload, { ecc: this.ecc, minVersion: this.effectiveMinVersion, mask: this.mask }),
+				error: null
+			};
+		} catch (e) {
+			return { qr: null, error: e instanceof Error ? e.message : String(e) };
+		}
+	});
+	encoded = $derived(this.qr.qr);
+	encodeError = $derived(this.qr.error);
+
+	plainSvg = $derived(
+		this.encoded
+			? renderSvg(this.encoded, {
+					widthMm: this.widthMm,
+					quietZone: this.quietZone,
+					fg: this.fg,
+					bg: this.bgColor,
+					title: `QR code: ${describe(this.type)}`
+				})
+			: ''
+	);
+
+	moduleMm = $derived(this.encoded ? moduleMm(this.widthMm, this.encoded.size, this.quietZone) : 0);
+	warnings = $derived<Warning[]>(
+		this.encoded
+			? [
+					...assess({
+						widthMm: this.widthMm,
+						size: this.encoded.size,
+						quiet: this.quietZone,
+						fg: this.fg,
+						bg: this.bgColor,
+						logoAreaRatio: this.logoAreaRatio,
+						ecc: this.ecc,
+						hasLogo: !!this.logo && !this.halftoneActive,
+						scanDistanceM: this.scanDistanceM ?? undefined
+					}),
+					...this.payloadWarnings
+				]
+			: []
+	);
+	status = $derived(
+		this.encoded
+			? summary({
+					widthMm: this.widthMm,
+					size: this.encoded.size,
+					quiet: this.quietZone,
+					fg: this.fg,
+					bg: this.bgColor,
+					logoAreaRatio: this.logoAreaRatio,
+					ecc: this.ecc,
+					hasLogo: !!this.logo && !this.halftoneActive,
+					scanDistanceM: this.scanDistanceM ?? undefined
+				})
+			: 'blocked'
+	);
+	logoBlocked = $derived(this.logoAreaRatio > LOGO_BLOCK_RATIO);
+
+	// Verification is driven by the Preview component (it owns the debounce and the canvas).
+	verify = $state<VerifyState>('idle');
+	verifyDetail = $state('');
+
+	/** Rendered styled SVG, kept here so the export panel can reuse the preview's render. */
+	styledSvg = $state('');
+	styledError = $state('');
+
+	reset(type: PayloadType) {
+		this.type = type;
+		this.shortUrl = null;
+	}
+}
+
+export function describe(type: PayloadType): string {
+	return (
+		{
+			url: 'link', text: 'text', wifi: 'WiFi network', vcard: 'contact card', mecard: 'contact card',
+			email: 'email', sms: 'text message', tel: 'phone number', geo: 'location', event: 'calendar event'
+		} as Record<PayloadType, string>
+	)[type];
+}
+
+export interface PayloadResult {
+	payload: string;
+	error: string | null;
+	warnings: Warning[];
+	empty: boolean;
+}
+
+export function buildPayload(type: PayloadType, f: Fields, shortUrl: string | null): PayloadResult {
+	const ok = (payload: string, warnings: Warning[] = []): PayloadResult => ({ payload, error: null, warnings, empty: false });
+	const empty: PayloadResult = { payload: '', error: null, warnings: [], empty: true };
+	if (shortUrl) return ok(shortUrl);
+	try {
+		switch (type) {
+			case 'url':
+				return f.url.url.trim() ? ok(payloads.url(f.url.url)) : empty;
+			case 'text':
+				return f.text.text.trim() ? ok(payloads.text(f.text.text)) : empty;
+			case 'wifi': {
+				const w = f.wifi;
+				if (!w.ssid.trim()) return empty;
+				return ok(
+					payloads.wifi({ ssid: w.ssid, password: w.auth === 'nopass' ? undefined : w.password, auth: w.auth, hidden: w.hidden }),
+					wifiWarnings({ ssid: w.ssid, password: w.auth === 'nopass' ? undefined : w.password, auth: w.auth, hidden: w.hidden })
+				);
+			}
+			case 'vcard':
+				return f.vcard.firstName.trim() || f.vcard.lastName.trim() ? ok(payloads.vcard(clean(f.vcard))) : empty;
+			case 'mecard':
+				return f.mecard.firstName.trim() || f.mecard.lastName.trim() ? ok(payloads.mecard(clean(f.mecard))) : empty;
+			case 'email':
+				return f.email.to.trim() ? ok(payloads.mailto({ to: f.email.to, subject: f.email.subject || undefined, body: f.email.body || undefined })) : empty;
+			case 'sms':
+				return f.sms.to.trim() ? ok(payloads.sms({ to: f.sms.to, body: f.sms.body || undefined, scheme: f.sms.scheme })) : empty;
+			case 'tel':
+				return f.tel.number.trim() ? ok(payloads.tel(f.tel.number)) : empty;
+			case 'geo': {
+				if (!f.geo.lat.trim() || !f.geo.lng.trim()) return empty;
+				const lat = Number(f.geo.lat);
+				const lng = Number(f.geo.lng);
+				if (Number.isNaN(lat) || Number.isNaN(lng)) return { ...empty, empty: false, error: 'Latitude and longitude must be numbers.' };
+				return ok(payloads.geo({ lat, lng, query: f.geo.query || undefined }));
+			}
+			case 'event': {
+				const e = f.event;
+				if (!e.summary.trim() || !e.start) return empty;
+				// datetime-local strings are local time; all-day dates are read by the encoder as UTC
+				// calendar dates, so build those from Date.UTC on the date part only.
+				const parse = (s: string): Date | undefined => {
+					if (!s) return undefined;
+					if (e.allDay) {
+						const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+						if (!y || !m || !d) return undefined;
+						return new Date(Date.UTC(y, m - 1, d));
+					}
+					const dt = new Date(s);
+					return Number.isNaN(dt.getTime()) ? undefined : dt;
+				};
+				const start = parse(e.start);
+				if (!start) return { ...empty, empty: false, error: 'Start date is not valid.' };
+				const end = parse(e.end);
+				return ok(
+					payloads.vevent({
+						summary: e.summary,
+						start,
+						end,
+						location: e.location || undefined,
+						description: e.description || undefined,
+						allDay: e.allDay
+					}),
+					[
+						{
+							level: 'info',
+							code: 'event-support',
+							message: 'Phone support for calendar QR codes varies. iPhone Camera and Google Lens offer to add the event; some Android cameras show the raw text. For a reliable experience, link to an event page instead.'
+						}
+					]
+				);
+			}
+		}
+	} catch (e) {
+		if (e instanceof PayloadError) return { payload: '', error: e.message, warnings: [], empty: false };
+		return { payload: '', error: e instanceof Error ? e.message : String(e), warnings: [], empty: false };
+	}
+}
+
+function clean<T extends object>(o: T): Partial<T> {
+	const out: Record<string, string> = {};
+	for (const [k, v] of Object.entries(o) as [string, unknown][]) if (typeof v === 'string' && v.trim()) out[k] = v.trim();
+	return out as Partial<T>;
+}
