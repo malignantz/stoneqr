@@ -1,6 +1,6 @@
 # UI refresh: cleaner, calmer, more obvious
 
-Status: planned 2026-09-04. Phases 0 to 2 built 2026-09-04; phases 3 to 5 open. Milestone M10 in `plan.md`. This is the design
+Status: planned 2026-09-04. Phases 0 to 3 built 2026-09-04; phases 4 and 5 open. Milestone M10 in `plan.md`. This is the design
 contract for the refresh; the rules in `CLAUDE.md` (Basic/Advanced split, `advancedInUse`, the
 hero row, "Photo QR" naming, the bundle budget, the decode check) all stay in force.
 
@@ -361,6 +361,30 @@ Need to change it after printing?  [ Make it editable and trackable ]
   cards line up, and the "Custom" row keeps its behaviour.
 
 ---
+
+### 6b. What Phase 3 settled
+
+Built 2026-09-04. The panel became Print size, Encoding, Files, and the four-different-styles
+button grid became one primary with a uniform row of three underneath, using a stacked button so
+"PDF / CMYK" fits a 101 px cell. The dpi control moved into Files, where it belongs, since it
+only changes the PNG.
+
+Three layout bugs surfaced while measuring, all of them older than this phase:
+
+- **The three columns started too early.** At a flat 22 rem the side columns left the preview
+  about 208 px at 1024 px wide, which crushed the caption strip and broke the figures under the
+  code across two lines. The side columns now hold back to 18 rem between `lg` and `xl`. Note
+  that the site's root font size is 17 px, so 18 rem is 306 px and 22 rem is 374 px.
+- **A section heading blew out its column.** `SectionHeader` is a grid item inside the panel's
+  grid, so its automatic minimum was its min-content — "Size and download" plus a 7 rem status
+  badge, about 312 px — which pushed the whole sheet past its 306 px track and the page into a
+  horizontal scroll. The heading now carries `min-w-0` and wraps rather than truncates, so the
+  badge drops to its own line instead of the title being ellipsised.
+- **The caption strip ran out of room** once it held a label, the Actual size toggle, and the
+  decode badge. The 10 mm scale bar moved into the preview area, beside the artwork where it
+  reads better anyway, and the "Preview" label is screen-reader-only between `lg` and `xl`.
+
+Cost: 92.6 KB to 92.7 KB gzipped, against the 150 KB budget.
 
 ## 7. Phase 4: Photo QR panel
 

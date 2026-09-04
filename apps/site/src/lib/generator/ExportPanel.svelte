@@ -221,152 +221,263 @@
 		{/snippet}
 	</SectionHeader>
 
-	{#if advanced}
-		<div class="grid grid-cols-[1fr_auto] gap-3">
-			<div class="field">
-				<label for="width">Print width</label>
-				<input id="width" class="input num" type="number" min="5" step="1" bind:value={design.width} />
+	<!-- Print size: how big it will be, and whether that still scans. -->
+	<div class="grid gap-3">
+		<p class="subhead">Print size</p>
+		{#if advanced}
+			<div class="grid grid-cols-[1fr_auto] gap-3">
+				<div class="field">
+					<label for="width">Print width</label>
+					<input id="width" class="input num" type="number" min="5" step="1" bind:value={design.width} />
+				</div>
+				<div class="field">
+					<label for="unit">Unit</label>
+					<select id="unit" class="select" bind:value={design.unit}>
+						<option value="mm">mm</option><option value="cm">cm</option><option value="in">in</option>
+					</select>
+				</div>
+			</div>
+			<div class="flex flex-wrap gap-1.5">
+				{#each presets as p (p.mm)}
+					<button type="button" class="chip" data-on={design.unit === 'mm' && design.width === p.mm} onclick={() => pickTier(p.mm)}>
+						{p.label} mm
+					</button>
+				{/each}
 			</div>
 			<div class="field">
-				<label for="unit">Unit</label>
-				<select id="unit" class="select" bind:value={design.unit}>
-					<option value="mm">mm</option><option value="cm">cm</option><option value="in">in</option>
-				</select>
+				<label for="dist">Read from (metres, optional)</label>
+				<input
+					id="dist"
+					class="input num"
+					type="number"
+					min="0.1"
+					step="0.1"
+					placeholder="e.g. 2 for a lobby sign"
+					value={design.scanDistanceM ?? ''}
+					oninput={(e) => {
+						const v = e.currentTarget.value;
+						design.scanDistanceM = v === '' ? null : Number(v);
+					}}
+				/>
 			</div>
-		</div>
-		<div class="flex flex-wrap gap-1.5">
-			{#each presets as p (p.mm)}
-				<button type="button" class="rounded border border-rule-2 bg-white px-2 py-0.5 text-xs hover:border-ink-3" onclick={() => pickTier(p.mm)}>{p.label} mm</button>
-			{/each}
-		</div>
-	{:else}
-		<fieldset class="m-0 grid gap-2 border-0 p-0">
-			<legend class="ticket mb-2">How big will it be printed?</legend>
-			{#each SIZE_TIERS as t (t.id)}
-				{@const fit = fitOf(t.mm)}
-				{@const on = tier?.id === t.id}
-				<label class="tier" data-on={on}>
-					<input type="radio" name="size-tier" class="sr-only" value={t.id} checked={on} onchange={() => pickTier(t.mm)} />
-					<span class="tier-dot" aria-hidden="true"></span>
-					<span class="grid min-w-0 gap-0.5">
-						<span class="flex flex-wrap items-baseline justify-between gap-x-3">
+		{:else}
+			<fieldset class="m-0 grid gap-2 border-0 p-0">
+				<legend class="sr-only">How big will it be printed?</legend>
+				{#each SIZE_TIERS as t (t.id)}
+					{@const fit = fitOf(t.mm)}
+					{@const on = tier?.id === t.id}
+					<label class="tier" data-on={on}>
+						<input type="radio" name="size-tier" class="sr-only" value={t.id} checked={on} onchange={() => pickTier(t.mm)} />
+						<span class="tier-dot" aria-hidden="true"></span>
+						<span class="grid min-w-0 gap-0.5">
 							<span class="font-medium">{t.name}</span>
-							<span class="num text-xs text-ink-3">{t.mm} mm · {formatIn(t.mm)} in</span>
+							<span class="text-sm text-ink-2">{t.uses}</span>
+							<span class="text-xs text-ink-3">{tierDistance(t)}.</span>
+							{#if fit !== 'good'}
+								<span class="text-xs font-medium {fit === 'small' ? 'text-block' : 'text-warn'}">{fitLabel[fit]}</span>
+							{/if}
 						</span>
-						<span class="text-sm text-ink-2">{t.uses}</span>
-						<span class="text-xs text-ink-3">{tierDistance(t)}.</span>
-						{#if fit !== 'good'}
-							<span class="text-xs font-medium {fit === 'small' ? 'text-block' : 'text-warn'}">{fitLabel[fit]}</span>
-						{/if}
-					</span>
-				</label>
-			{/each}
-			{#if !tier}
-				{@const fit = fitOf(design.widthMm)}
-				<label class="tier" data-on={true}>
-					<input type="radio" name="size-tier" class="sr-only" value="custom" checked />
-					<span class="tier-dot" aria-hidden="true"></span>
-					<span class="grid min-w-0 gap-0.5">
-						<span class="flex flex-wrap items-baseline justify-between gap-x-3">
+						<!-- Its own column, so the figures line up down all four cards. -->
+						<span class="tier-size">
+							<span class="num">{t.mm} mm</span>
+							<span class="num">{formatIn(t.mm)} in</span>
+						</span>
+					</label>
+				{/each}
+				{#if !tier}
+					{@const fit = fitOf(design.widthMm)}
+					<label class="tier" data-on={true}>
+						<input type="radio" name="size-tier" class="sr-only" value="custom" checked />
+						<span class="tier-dot" aria-hidden="true"></span>
+						<span class="grid min-w-0 gap-0.5">
 							<span class="font-medium">Custom</span>
-							<span class="num text-xs text-ink-3">{formatMm(design.widthMm)} mm · {formatIn(design.widthMm, true)} in</span>
+							<span class="text-sm text-ink-2">Set in Advanced. Pick a size above to replace it.</span>
+							{#if fit !== 'good'}
+								<span class="text-xs font-medium {fit === 'small' ? 'text-block' : 'text-warn'}">{fitLabel[fit]}</span>
+							{/if}
 						</span>
-						<span class="text-sm text-ink-2">Set in Advanced. Pick a size above to replace it.</span>
-						{#if fit !== 'good'}
-							<span class="text-xs font-medium {fit === 'small' ? 'text-block' : 'text-warn'}">{fitLabel[fit]}</span>
-						{/if}
-					</span>
-				</label>
-			{/if}
-		</fieldset>
-	{/if}
-	{#if design.styled && design.styledScale > 1}
-		<p class="hint">With the frame the whole artwork is <span class="num">{formatMm(fromMm(artWidthMm, design.unit))} {design.unit}</span> wide; the code inside stays {design.width} {design.unit}.</p>
-	{/if}
-	{#if advanced}
-		<div class="field">
-			<label for="dist">Read from (metres, optional)</label>
-			<input id="dist" class="input num" type="number" min="0.1" step="0.1" placeholder="e.g. 2 for a lobby sign" value={design.scanDistanceM ?? ''} oninput={(e) => { const v = e.currentTarget.value; design.scanDistanceM = v === '' ? null : Number(v); }} />
-		</div>
-	{/if}
-
-	{#if design.encoded}
-		<ul class="grid gap-2">
-			{#each visibleWarnings as w (w.code + w.level + w.message)}
-				<li class="notice notice-{w.level}">{w.message}</li>
-			{/each}
-		</ul>
-		{#if design.scanDistanceM}
-			<p class="hint">For {design.scanDistanceM} m, print at least <strong class="num">{formatMm(fromMm(minWidthMmForDistance(design.scanDistanceM), design.unit))} {design.unit}</strong>. At the current size it reads to about <span class="num">{maxScanDistanceM(design.widthMm).toFixed(1)} m</span>.</p>
+						<span class="tier-size">
+							<span class="num">{formatMm(design.widthMm)} mm</span>
+							<span class="num">{formatIn(design.widthMm, true)} in</span>
+						</span>
+					</label>
+				{/if}
+			</fieldset>
 		{/if}
-	{/if}
 
+		{#if design.styled && design.styledScale > 1}
+			<p class="hint">
+				With the frame the whole artwork is
+				<span class="num">{formatMm(fromMm(artWidthMm, design.unit))} {design.unit}</span> wide; the code inside stays
+				{design.width}
+				{design.unit}.
+			</p>
+		{/if}
+		{#if design.encoded}
+			{#if visibleWarnings.length}
+				<ul class="grid gap-2">
+					{#each visibleWarnings as w (w.code + w.level + w.message)}
+						<li class="notice notice-{w.level}">{w.message}</li>
+					{/each}
+				</ul>
+			{/if}
+			{#if design.scanDistanceM}
+				<p class="hint">
+					For {design.scanDistanceM} m, print at least
+					<strong class="num">{formatMm(fromMm(minWidthMmForDistance(design.scanDistanceM), design.unit))} {design.unit}</strong>. At
+					the current size it reads to about <span class="num">{maxScanDistanceM(design.widthMm).toFixed(1)} m</span>.
+				</p>
+			{/if}
+		{/if}
+	</div>
+
+	<!-- Encoding: how the symbol itself is built. Advanced only. -->
 	{#if advanced}
-		<div class="field">
-			<span class="label">Error correction</span>
-			<div class="flex flex-wrap items-center gap-3">
-				<div class="seg" role="group" aria-label="Error correction">
+		<div class="grid gap-3">
+			<p class="subhead">Encoding</p>
+			<div class="field">
+				<span class="label">Error correction</span>
+				<div class="seg justify-self-start" role="group" aria-label="Error correction">
 					{#each eccs as e (e)}
-						<button type="button" aria-pressed={design.ecc === e} disabled={!!design.logo || design.halftoneActive} onclick={() => (design.eccChoice = e)}>{e}</button>
+						<button
+							type="button"
+							aria-pressed={design.ecc === e}
+							disabled={!!design.logo || design.halftoneActive}
+							onclick={() => (design.eccChoice = e)}>{e}</button
+						>
 					{/each}
 				</div>
-				<span class="hint">{design.halftoneActive ? 'Forced to H while a picture is blended in.' : design.logo ? 'Forced to H while a logo is present.' : { L: 'Survives 7% damage. Smallest code.', M: 'Survives 15%. The sensible default.', Q: 'Survives 25%.', H: 'Survives 30%. Needed for logos.' }[design.ecc]}</span>
+				<p class="hint">
+					{design.halftoneActive
+						? 'Forced to H while a picture is blended in.'
+						: design.logo
+							? 'Forced to H while a logo is present.'
+							: { L: 'Survives 7% damage. Smallest code.', M: 'Survives 15%. The sensible default.', Q: 'Survives 25%.', H: 'Survives 30%. Needed for logos.' }[design.ecc]}
+				</p>
+			</div>
+
+			<!-- Three across only once there is room; between lg and xl the column is ~306 px and the
+			     mask select loses its own word. -->
+			<div class="grid grid-cols-2 gap-3 xl:grid-cols-3">
+				<div class="field">
+					<label for="quiet">Quiet zone</label>
+					<input id="quiet" class="input num" type="number" min="0" max="10" step="1" bind:value={design.quietZone} />
+				</div>
+				<div class="field">
+					<label for="minv">Min version</label>
+					<input
+						id="minv"
+						class="input num"
+						type="number"
+						min="1"
+						max="40"
+						step="1"
+						bind:value={design.minVersion}
+						disabled={design.halftoneActive}
+						title={design.halftoneActive ? 'Photo QR sets its own minimum version' : ''}
+					/>
+				</div>
+				<div class="field col-span-2 xl:col-span-1">
+					<label for="mask">Mask</label>
+					<select
+						id="mask"
+						class="select"
+						value={String(design.mask)}
+						onchange={(e) => {
+							const v = e.currentTarget.value;
+							design.mask = v === 'auto' ? 'auto' : Number(v);
+						}}
+					>
+						<option value="auto">Auto</option>
+						{#each [0, 1, 2, 3, 4, 5, 6, 7] as m (m)}<option value={String(m)}>{m}</option>{/each}
+					</select>
+				</div>
 			</div>
 		</div>
+	{/if}
 
-		<div class="grid grid-cols-3 gap-3">
-			<div class="field">
-				<label for="quiet">Quiet zone</label>
-				<input id="quiet" class="input num" type="number" min="0" max="10" step="1" bind:value={design.quietZone} />
+	<!-- Files: one obvious download, then the rest in one uniform row. -->
+	<div class="grid gap-2">
+		<p class="subhead mb-1">Files</p>
+		{#if advanced}
+			<button type="button" class="btn btn-accent btn-stack" disabled={!canExport || busy === 'svg'} onclick={svg}>
+				<span>Download SVG</span><span class="ticket text-paper/70">vector</span>
+			</button>
+			<div class="grid grid-cols-3 gap-2">
+				<button
+					type="button"
+					class="btn btn-secondary btn-stack"
+					disabled={!canExport || busy === 'pdf' || design.halftoneActive}
+					title={design.halftoneActive ? halftoneOnly : ''}
+					onclick={pdf}
+				>
+					<span>PDF</span><span class="ticket">{design.styled ? 'raster' : 'CMYK'}</span>
+				</button>
+				<button type="button" class="btn btn-secondary btn-stack" disabled={!canExport || busy === 'png'} onclick={png} aria-live="polite">
+					{#if busy === 'png' && pngProgress}
+						<span class="text-xs">{pngProgress}</span>
+					{:else}
+						<span>PNG</span><span class="ticket">{design.dpi} dpi</span>
+					{/if}
+				</button>
+				<button
+					type="button"
+					class="btn btn-secondary btn-stack"
+					disabled={!canExport || design.styled || design.halftoneActive}
+					title={design.halftoneActive ? halftoneOnly : design.styled ? 'EPS is available for the plain square style' : ''}
+					onclick={eps}
+				>
+					<span>EPS</span><span class="ticket">vector</span>
+				</button>
 			</div>
-			<div class="field">
-				<label for="minv">Min version</label>
-				<input id="minv" class="input num" type="number" min="1" max="40" step="1" bind:value={design.minVersion} disabled={design.halftoneActive} title={design.halftoneActive ? 'Photo QR sets its own minimum version' : ''} />
+			<div class="mt-1 grid grid-cols-2 gap-2">
+				<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'copy'} onclick={copy}>
+					{copied ? 'Copied' : 'Copy PNG'}
+				</button>
+				<button
+					type="button"
+					class="btn btn-secondary btn-sm"
+					disabled={!canExport || busy === 'sheet' || design.halftoneActive}
+					title={design.halftoneActive ? halftoneOnly : ''}
+					onclick={testSheet}>Print test sheet</button
+				>
 			</div>
-			<div class="field">
-				<label for="mask">Mask</label>
-				<select id="mask" class="select" value={String(design.mask)} onchange={(e) => { const v = e.currentTarget.value; design.mask = v === 'auto' ? 'auto' : Number(v); }}>
-					<option value="auto">Auto</option>
-					{#each [0, 1, 2, 3, 4, 5, 6, 7] as m (m)}<option value={String(m)}>{m}</option>{/each}
-				</select>
-			</div>
-			<div class="field col-span-3">
-				<label for="dpi">PNG resolution</label>
+			<!-- Resolution sits with the files, not with the encoding: it only changes the PNG. -->
+			<div class="field mt-1">
+				<label for="dpi">PNG detail</label>
 				<select id="dpi" class="select" bind:value={design.dpi}>
 					<option value={150}>150 dpi (screen)</option>
 					<option value={300}>300 dpi (print)</option>
 					<option value={600}>600 dpi (fine print)</option>
 				</select>
-			</div>
-		</div>
-	{/if}
-
-	<hr class="rule" />
-
-	<div class="grid gap-2">
-		{#if advanced}
-			<div class="grid grid-cols-2 gap-2">
-				<button type="button" class="btn btn-accent" disabled={!canExport || busy === 'svg'} onclick={svg}>SVG <span class="ticket text-paper/70">vector</span></button>
-				<button type="button" class="btn" disabled={!canExport || busy === 'pdf' || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : ''} onclick={pdf}>PDF <span class="ticket text-paper/70">{design.styled ? 'raster' : 'CMYK'}</span></button>
-				<button type="button" class="btn btn-secondary" disabled={!canExport || busy === 'png'} onclick={png} aria-live="polite">
-					{#if busy === 'png' && pngProgress}{pngProgress}{:else}PNG <span class="ticket">{design.dpi} dpi</span>{/if}
-				</button>
-				<button type="button" class="btn btn-secondary" disabled={!canExport || design.styled || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : design.styled ? 'EPS is available for the plain square style' : ''} onclick={eps}>EPS</button>
-			</div>
-			<div class="grid grid-cols-2 gap-2">
-				<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'copy'} onclick={copy}>{copied ? 'Copied' : 'Copy PNG'}</button>
-				<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'sheet' || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : ''} onclick={testSheet}>Print test sheet</button>
+				<p class="hint">Makes a <span class="num">{pngPx} px</span> image at this print size.</p>
 			</div>
 		{:else}
 			<!-- Basic: one obvious download, two for specialists, each saying who it is for. -->
-			<button type="button" class="btn btn-accent w-full" disabled={!canExport || busy === 'png'} onclick={png} aria-live="polite">
-				{#if busy === 'png' && pngProgress}{pngProgress}{:else}Download PNG <span class="ticket text-paper/70 num">{pngPx} px</span>{/if}
+			<button type="button" class="btn btn-accent btn-stack" disabled={!canExport || busy === 'png'} onclick={png} aria-live="polite">
+				{#if busy === 'png' && pngProgress}
+					{pngProgress}
+				{:else}
+					<span>Download PNG</span><span class="ticket num text-paper/70">{pngPx} px</span>
+				{/if}
 			</button>
 			<div class="grid grid-cols-2 gap-2">
-				<button type="button" class="btn btn-secondary" disabled={!canExport || busy === 'pdf' || design.halftoneActive} title={design.halftoneActive ? halftoneOnly : ''} onclick={pdf}>PDF <span class="ticket whitespace-nowrap">print</span></button>
-				<button type="button" class="btn btn-secondary" disabled={!canExport || busy === 'svg'} onclick={svg}>SVG <span class="ticket whitespace-nowrap">vector</span></button>
+				<button
+					type="button"
+					class="btn btn-secondary btn-stack"
+					disabled={!canExport || busy === 'pdf' || design.halftoneActive}
+					title={design.halftoneActive ? halftoneOnly : ''}
+					onclick={pdf}
+				>
+					<span>PDF</span><span class="ticket">print</span>
+				</button>
+				<button type="button" class="btn btn-secondary btn-stack" disabled={!canExport || busy === 'svg'} onclick={svg}>
+					<span>SVG</span><span class="ticket">vector</span>
+				</button>
 			</div>
-			<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'copy'} onclick={copy}>{copied ? 'Copied' : 'Copy to clipboard'}</button>
+			<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'copy'} onclick={copy}>
+				{copied ? 'Copied' : 'Copy to clipboard'}
+			</button>
 			<p class="hint text-center">PNG for documents, slides, and the web. PDF for print shops. SVG for designers.</p>
 		{/if}
 		{#if design.encoded && !canExport}
@@ -381,8 +492,13 @@
 
 	<div class="grid gap-2">
 		<p class="ticket">Need to change it after printing?</p>
-		<a href={design.payload ? dynamicHref : '#'} class="btn btn-secondary" aria-disabled={!design.payload} rel="noopener">Make it editable and trackable</a>
-		<p class="hint">Creates a short link in a free SignUpCity account and brings you back here with it. StoneQR stores nothing. SignUpCity's links carry a published no-deactivation policy.</p>
+		<a href={design.payload ? dynamicHref : '#'} class="btn btn-secondary" aria-disabled={!design.payload} rel="noopener">
+			Make it editable and trackable
+		</a>
+		<p class="hint">
+			Creates a short link in a free SignUpCity account and brings you back here with it. StoneQR stores nothing.
+			SignUpCity's links carry a published no-deactivation policy.
+		</p>
 	</div>
 </section>
 

@@ -257,9 +257,21 @@
 			{:else}
 				<p class="text-ink-3">Rendering…</p>
 			{/if}
+			{#if actualSize}
+				<span class="scale-mark" aria-hidden="true">
+					<span class="scale-bar"></span>
+					<span class="ticket">10 mm</span>
+				</span>
+			{/if}
 		</div>
-		<div class="flex min-h-10 items-center justify-between gap-3 border-t border-rule px-4 py-2 whitespace-nowrap">
-			<h2 id="preview-heading" class="ticket">Preview</h2>
+		<div class="flex min-h-10 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-rule px-4 py-2 whitespace-nowrap">
+			<!--
+			  Between lg and xl the preview column is about 276 px, which is not enough for the
+			  label, the Actual size toggle, and the decode badge at once. The label is the least
+			  useful of the three next to the code itself, so it goes to screen readers only until
+			  there is room. It stays in the DOM either way: the section is labelled by it.
+			-->
+			<h2 id="preview-heading" class="ticket {advanced ? 'sr-only xl:not-sr-only' : ''}">Preview</h2>
 			{#if advanced}
 				<label
 					class="toggle ml-auto text-xs"
@@ -268,11 +280,6 @@
 					<input type="checkbox" bind:checked={actualSize} />
 					Actual size
 				</label>
-				{#if actualSize}
-					<span class="ticket flex items-center gap-1.5" aria-hidden="true">
-						<span class="scale-bar"></span>10 mm
-					</span>
-				{/if}
 			{/if}
 			{#if design.verify === 'ok'}
 				<span class="badge badge-ok" title="Decoded on your device and matched the content">
@@ -292,7 +299,9 @@
 	{/if}
 
 	{#if design.encoded}
-		<dl class="grid grid-cols-4 gap-2 text-center">
+		<!-- Four across, except between lg and xl where the preview column is at its narrowest and
+		     the module figure would break across two lines. -->
+		<dl class="grid grid-cols-4 gap-2 text-center lg:grid-cols-2 xl:grid-cols-4">
 			<div><dt class="ticket">Version</dt><dd class="num">{design.encoded.version}</dd></div>
 			<div><dt class="ticket">Modules</dt><dd class="num">{design.encoded.size}</dd></div>
 			<div><dt class="ticket">ECC</dt><dd class="num">{design.ecc}</dd></div>

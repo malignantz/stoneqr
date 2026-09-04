@@ -97,10 +97,14 @@
   them to fill it in. The left column is `display: contents` there, so its two sheets take part
   in the single-column order individually; at lg it becomes a normal block and they stack in the
   first column as before. The bottom padding leaves room for the pinned preview bar.
+
+  The side columns hold back to 18rem between lg and xl. At a flat 22rem the three columns eat
+  everything at 1024 px and leave the preview about 208 px, which crushed the caption strip and
+  the figures under the code.
 -->
 <div
 	id="generator"
-	class="mx-auto grid max-w-7xl gap-6 px-4 pt-5 pb-24 sm:px-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)_minmax(0,22rem)] lg:gap-8 lg:pb-8"
+	class="mx-auto grid max-w-7xl gap-6 px-4 pt-5 pb-24 sm:px-6 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)_minmax(0,18rem)] lg:gap-8 lg:pb-8 xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)_minmax(0,22rem)]"
 >
 	<div class="contents lg:order-1 lg:block lg:space-y-6">
 		<div class="sheet order-1 p-5 lg:p-6">

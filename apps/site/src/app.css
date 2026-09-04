@@ -229,6 +229,17 @@ a:hover {
 	background: var(--color-accent-ink);
 	border-color: var(--color-accent-ink);
 }
+.btn-stack {
+	flex-direction: column;
+	gap: 0;
+	padding-top: 0.42rem;
+	padding-bottom: 0.46rem;
+	line-height: 1.2;
+}
+.btn-stack > .ticket {
+	font-size: 0.6rem;
+	letter-spacing: 0.1em;
+}
 .btn-sm {
 	padding: 0.4rem 0.7rem;
 	font-size: 0.85rem;
@@ -725,10 +736,20 @@ a:hover {
  * The 10 mm rule shown beside the preview when "Actual size" is on, so the code on screen can be
  * checked against a real ruler. Drawn with end ticks, like a scale bar on a drawing.
  */
+.scale-mark {
+	position: absolute;
+	left: 0.6rem;
+	bottom: 0.4rem;
+	display: grid;
+	justify-items: center;
+	gap: 0.1rem;
+	pointer-events: none;
+	mix-blend-mode: multiply;
+}
 .scale-bar {
 	display: inline-block;
 	width: 10mm;
-	height: 0.5rem;
+	height: 0.35rem;
 	border: 1px solid var(--color-ink-3);
 	border-top: 0;
 }
@@ -805,7 +826,8 @@ a:hover {
 /* Size tiers: the Basic export panel's radio cards */
 .tier {
 	display: grid;
-	grid-template-columns: auto 1fr;
+	/* dot | description | size, so the figures line up down every card in the list */
+	grid-template-columns: auto minmax(0, 1fr) auto;
 	gap: 0.7rem;
 	align-items: start;
 	padding: 0.65rem 0.8rem;
@@ -825,6 +847,17 @@ a:hover {
 .tier:has(:focus-visible) {
 	border-color: var(--color-accent);
 	box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+.tier-size {
+	display: grid;
+	justify-items: end;
+	gap: 0.1rem;
+	font-size: 0.7rem;
+	color: var(--color-ink-3);
+	white-space: nowrap;
+}
+.tier[data-on='true'] .tier-size {
+	color: var(--color-ink-2);
 }
 .tier-dot {
 	margin-top: 0.3rem;

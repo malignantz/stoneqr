@@ -71,15 +71,21 @@
 			/>
 		</button>
 	{:else}
-		<span class="flex w-full items-center justify-between gap-3 py-1">
-			<span class="min-w-0 truncate">{title}</span>
+		<!--
+		  Wraps rather than truncates: in a narrow column "Size and download" beside a status badge
+		  needs more room than there is, and an ellipsised heading is worse than a badge on its own
+		  line. The badge keeps a fixed width (badge-fixed), so which line it lands on never changes
+		  while the status text does.
+		-->
+		<span class="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1">
+			<span class="min-w-0">{title}</span>
 			{#if badge}{@render badge()}{/if}
 		</span>
 	{/if}
 {/snippet}
 
 {#if level === 2}
-	<h2 {id} class="flex text-xl">{@render inner()}</h2>
+	<h2 {id} class="flex min-w-0 text-xl">{@render inner()}</h2>
 {:else}
-	<h3 {id} class="flex text-lg">{@render inner()}</h3>
+	<h3 {id} class="flex min-w-0 text-lg">{@render inner()}</h3>
 {/if}
