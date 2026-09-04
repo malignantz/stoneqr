@@ -9,6 +9,7 @@
 		THRESHOLD_MIN
 	} from '@stoneqr/engine';
 	import { GLYPHS, glyphDataUrl, glyphName, glyphSvg, type Glyph } from '$lib/glyphs';
+	import CropBox from '$lib/components/CropBox.svelte';
 	import DropTile from '$lib/components/DropTile.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import Slider from '$lib/components/Slider.svelte';
@@ -149,12 +150,23 @@
 		{#if design.halftoneActive}
 			<div class="grid gap-3">
 				<p class="subhead">Crop</p>
+				<!-- The box is the data area on the picture; dragging it is the Across and Down sliders,
+				     and its corner is the Zoom slider. The sliders stay for precision, the two offsets
+				     in Advanced only, since the box says the same thing in a picture. -->
+				<CropBox
+					src={design.halftoneImage ?? ''}
+					bind:zoom={design.halftoneZoom}
+					bind:offsetX={design.halftoneOffsetX}
+					bind:offsetY={design.halftoneOffsetY}
+				/>
 				<Slider label="Zoom" bind:value={design.halftoneZoom} min={IMAGE_ZOOM_MIN} max={IMAGE_ZOOM_MAX} step={0.05} reset={1} format={(v) => `${v.toFixed(2)}×`} />
-				<Slider label="Across" bind:value={design.halftoneOffsetX} min={-IMAGE_OFFSET_MAX} max={IMAGE_OFFSET_MAX} step={0.01} reset={0} format={pct} />
-				<Slider label="Down" bind:value={design.halftoneOffsetY} min={-IMAGE_OFFSET_MAX} max={IMAGE_OFFSET_MAX} step={0.01} reset={0} format={pct} />
+				{#if advanced}
+					<Slider label="Across" bind:value={design.halftoneOffsetX} min={-IMAGE_OFFSET_MAX} max={IMAGE_OFFSET_MAX} step={0.01} reset={0} format={pct} />
+					<Slider label="Down" bind:value={design.halftoneOffsetY} min={-IMAGE_OFFSET_MAX} max={IMAGE_OFFSET_MAX} step={0.01} reset={0} format={pct} />
+				{/if}
 				<p class="hint">
-					At 1× the picture fills the code and a non-square picture is cropped to the middle. Zoom in to enlarge one
-					part, move it with the sliders, or zoom out to leave paper around it.
+					Drag the box to choose what shows in the code, and drag its corner to zoom. At 1× the picture fills the
+					code; zoom out to leave paper around it.
 					{#if cropChanged}<button type="button" class="underline" onclick={resetCrop}>Reset crop</button>{/if}
 				</p>
 			</div>

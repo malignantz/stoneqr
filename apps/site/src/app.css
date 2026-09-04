@@ -531,6 +531,59 @@ a:hover {
 	outline-offset: 2px;
 }
 
+/*
+ * The Photo QR crop box. The stage is a square of paper with the picture inside it; the box is
+ * the data area, drawn over the picture with everything outside it dimmed by one large shadow,
+ * which the stage's overflow clips. The corner handle zooms.
+ */
+.crop-stage {
+	position: relative;
+	width: 100%;
+	max-width: 18rem;
+	aspect-ratio: 1;
+	overflow: hidden;
+	border: 1px solid var(--color-rule-2);
+	border-radius: 6px;
+	background: var(--color-paper-2);
+	user-select: none;
+	-webkit-user-select: none;
+}
+.crop-stage > img {
+	position: absolute;
+	display: block;
+	pointer-events: none;
+}
+.crop-box {
+	position: absolute;
+	box-sizing: border-box;
+	border: 2px solid var(--color-accent);
+	box-shadow: 0 0 0 200vmax color-mix(in oklab, var(--color-paper) 62%, transparent);
+	cursor: move;
+	touch-action: none;
+}
+.crop-box[data-dragging='true'] {
+	border-color: var(--color-accent-ink);
+}
+.crop-handle {
+	position: absolute;
+	right: -0.55rem;
+	bottom: -0.55rem;
+	width: 1.1rem;
+	height: 1.1rem;
+	border-radius: 999px;
+	border: 2px solid white;
+	background: var(--color-accent);
+	box-shadow: 0 1px 3px color-mix(in oklab, var(--color-ink) 35%, transparent);
+	cursor: nwse-resize;
+	touch-action: none;
+}
+/* A bigger target on a phone than the dot itself. */
+.crop-handle::before {
+	content: '';
+	position: absolute;
+	inset: -0.6rem;
+}
+
 /* An on/off decision that reveals more controls. Plain checkboxes stay for flags in a form. */
 .toggle {
 	display: inline-flex;

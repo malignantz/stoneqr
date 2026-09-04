@@ -518,11 +518,21 @@ offers. The collapsed summary names the look ("Soft · Logo") and falls back to 
 for a custom one. Colours, the logo, and the frame are not part of a look; they are separate
 decisions.
 
+## 8e. The crop box
+
+Added 2026-09-04, the second item from §9. The Crop group in Photo QR now leads with the picture
+itself, drawn on a square stage of paper with the data area over it as a box: drag the box to
+choose what shows in the code, drag its corner to zoom, or use the arrow keys and plus and minus
+with the stage focused. The box is the engine's placement run backwards (`lib/crop.ts`, tested
+against `imagePlacement` case by case), so what it frames is exactly what the code blends in and
+no second model of the crop exists. The Zoom slider stays in both control sets; the Across and
+Down sliders moved to Advanced, since the box says the same thing in a picture.
+
 ## 9. Out of scope for this refresh
 
 - Dark mode. The paper look is the brand; a dark theme is a separate decision.
 - ~~Style presets~~ — built, see §8d.
-- A draggable crop box for Photo QR.
+- ~~A draggable crop box for Photo QR~~ — built, see §8e.
 - Any change to the engine, the renderers, the goldens, the exports, or the SignUpCity hand-off.
 - New copy for the marketing pages beyond trimming ledes on phones.
 
