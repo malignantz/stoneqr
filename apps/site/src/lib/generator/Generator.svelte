@@ -37,8 +37,22 @@
 	design.type = untrack(() => preset);
 
 	// Basic shows the controls most people need; Advanced shows everything. Remembered per browser.
+	//
+	// Read synchronously on the client rather than in onMount: the prerendered HTML is Basic, and
+	// a saved Advanced choice applied after mount painted Basic first and then rebuilt the panels.
+	// Svelte recovers from an {#if} that differs from the server by rendering that branch afresh,
+	// so the first client render is already Advanced; app.html and app.css hold the tool
+	// invisible until then (see the data-hydrated stamp in onMount).
 	const MODE_KEY = 'stoneqr.mode';
-	let advanced = $state(false);
+	let advanced = $state(readMode());
+	function readMode(): boolean {
+		if (!browser) return false;
+		try {
+			return localStorage.getItem(MODE_KEY) === 'advanced';
+		} catch {
+			return false;
+		}
+	}
 	function setMode(next: boolean) {
 		advanced = next;
 		try {
@@ -49,11 +63,8 @@
 	}
 
 	onMount(() => {
-		try {
-			advanced = localStorage.getItem(MODE_KEY) === 'advanced';
-		} catch {
-			/* see above */
-		}
+		// The generator is in the DOM in the saved control set: let app.css show it.
+		document.documentElement.dataset.hydrated = '';
 		// Return leg of the dynamic hand-off: ?short=<https://su.city/q/slug>
 		const short = page.url.searchParams.get('short');
 		if (short && /^https:\/\//.test(short)) {

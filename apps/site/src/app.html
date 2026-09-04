@@ -5,6 +5,13 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="theme-color" content="#f4f0e8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<!--
+		  The prerendered generator is the Basic control set. Someone who saved Advanced would see
+		  Basic paint, then swap once the JavaScript ran. This stamps the saved choice on <html>
+		  before first paint so app.css can hold the tool back until hydration; the hash of this
+		  exact script is in svelte.config.js, so change both together.
+		-->
+		<script>try{if(localStorage.getItem('stoneqr.mode')==='advanced')document.documentElement.dataset.mode='advanced'}catch(e){}</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

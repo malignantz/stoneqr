@@ -19,7 +19,8 @@ const config = {
 			mode: 'hash',
 			directives: {
 				'default-src': ['self'],
-				'script-src': ['self', 'https://static.cloudflareinsights.com'],
+				// The sha256 is the mode-stamping inline script in app.html; regenerate it if that script changes.
+				'script-src': ['self', 'https://static.cloudflareinsights.com', 'sha256-YA4NGEpJLlbjaCXvDt2V44Y1Ehr2Nqg18ljoB8PpQ58='],
 				'style-src': ['self', 'unsafe-inline'],
 				'img-src': ['self', 'data:', 'blob:'],
 				'font-src': ['self', 'data:'],

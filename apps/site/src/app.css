@@ -1103,6 +1103,23 @@ a:hover {
 	}
 }
 
+/*
+ * The prerendered generator is Basic. When app.html has stamped a saved Advanced choice on
+ * <html>, the tool and its toggle stay invisible (space kept, so nothing moves) until the
+ * Generator has hydrated in Advanced and set data-hydrated. The zero-length animation is a
+ * safety net: if the JavaScript never arrives, the Basic tool appears after 2.5 s rather than
+ * never.
+ */
+html[data-mode='advanced']:not([data-hydrated]) :is(#generator, .seg[aria-label='Control set']) {
+	visibility: hidden;
+	animation: unhide 0s linear 2.5s forwards;
+}
+@keyframes unhide {
+	to {
+		visibility: visible;
+	}
+}
+
 /* Reduced chrome on print */
 @media print {
 	body {

@@ -481,6 +481,15 @@ controls that claim radio semantics.
   nav links, and `<main>` carries the id it points at.
 - **Feet beside metres** in the Advanced "reads to about" hint, through the same `formatDistance`
   the Basic tiers use.
+- **No Basic-to-Advanced flash on load.** The prerendered page is Basic, and a saved Advanced
+  choice used to be applied in `onMount`, so every visit painted Basic and then rebuilt the
+  panels. Now a one-line inline script in `app.html` stamps `data-mode="advanced"` on `<html>`
+  before first paint, `app.css` keeps the tool and its toggle invisible (space kept) until the
+  Generator sets `data-hydrated`, and the Generator reads the saved mode synchronously so its
+  first client render is Advanced. Svelte 5 recovers from an `{#if}` that differs from the
+  server by rendering that branch afresh, without a warning. The script's sha256 is in the CSP
+  in `svelte.config.js`; a zero-length CSS animation releases the hold after 2.5 s if the
+  JavaScript never arrives. Basic visitors see no change at all.
 
 Cost: no new chunks; the generator page's eager JavaScript moved by well under a kilobyte.
 
