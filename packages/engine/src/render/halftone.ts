@@ -29,6 +29,14 @@ export interface HalftoneOptions {
 	/** Contrast multiplier around mid-grey, 0.5..2. Default 1. */
 	contrast?: number;
 	/**
+	 * Silhouette cut, 0..1 as a fraction of full brightness. When set, the picture is reduced to
+	 * two tones: anything darker than the cut becomes the dark colour, everything else the light
+	 * colour, so a logo or glyph comes out as a crisp shape made of modules rather than a soft
+	 * photograph. Applied after greyscale and contrast, before the fade. Leave unset (the default)
+	 * to keep the picture continuous.
+	 */
+	threshold?: number;
+	/**
 	 * Picture zoom relative to cover-fit: 1 fills the data area, 2 shows the middle half, below 1
 	 * shrinks the picture and leaves the light colour around it. 0.5..3. Default 1.
 	 */
@@ -65,6 +73,10 @@ export const DOT_SCALE_MAX = 0.7;
 export const IMAGE_ZOOM_MIN = 0.5;
 export const IMAGE_ZOOM_MAX = 3;
 export const IMAGE_OFFSET_MAX = 0.5;
+export const THRESHOLD_MIN = 0.05;
+export const THRESHOLD_MAX = 0.95;
+/** The cut a silhouette starts at: mid-grey, which splits a typical logo cleanly from its paper. */
+export const THRESHOLD_DEFAULT = 0.5;
 /** Default module budget for an image-bearing symbol: version 7 is 45×45 = 2025 modules (plan §7 step 1). */
 export const HALFTONE_MIN_MODULES = 2025;
 
@@ -307,7 +319,7 @@ export function halftoneWithFallback(
 	};
 }
 
-type Resolved = Required<HalftoneOptions>;
+type Resolved = Required<Omit<HalftoneOptions, 'threshold'>> & { threshold: number | undefined };
 
 function withDefaults(o: HalftoneOptions): Resolved {
 	return {
@@ -319,6 +331,7 @@ function withDefaults(o: HalftoneOptions): Resolved {
 		imageDim: clamp(o.imageDim ?? 0, 0, 1),
 		grayscale: o.grayscale ?? false,
 		contrast: clamp(o.contrast ?? 1, 0.5, 2),
+		threshold: o.threshold === undefined || o.threshold === null ? undefined : clamp(o.threshold, THRESHOLD_MIN, THRESHOLD_MAX),
 		imageZoom: clamp(o.imageZoom ?? 1, IMAGE_ZOOM_MIN, IMAGE_ZOOM_MAX),
 		imageOffsetX: clamp(o.imageOffsetX ?? 0, -IMAGE_OFFSET_MAX, IMAGE_OFFSET_MAX),
 		imageOffsetY: clamp(o.imageOffsetY ?? 0, -IMAGE_OFFSET_MAX, IMAGE_OFFSET_MAX)
@@ -326,18 +339,42 @@ function withDefaults(o: HalftoneOptions): Resolved {
 }
 
 /**
+ * The picture exactly as the renderer will blend it: alpha composited over the light colour,
+ * then greyscale, contrast, the silhouette cut, and the fade applied, as 8-bit RGBA at the
+ * source size. The SVG export embeds this so the vector file shows the same picture that was
+ * verified. `renderHalftone` uses the same pass internally (as packed RGB).
+ */
+export function prepareImage(image: RasterImage, opts: HalftoneOptions = {}): RasterImage {
+	const rgb = prepareSource(image, withDefaults(opts));
+	const n = image.width * image.height;
+	const out = new Uint8ClampedArray(n * 4);
+	for (let i = 0, p = 0, q = 0; i < n; i++, p += 3, q += 4) {
+		out[q] = rgb[p]!;
+		out[q + 1] = rgb[p + 1]!;
+		out[q + 2] = rgb[p + 2]!;
+		out[q + 3] = 255;
+	}
+	return { width: image.width, height: image.height, data: out };
+}
+
+/**
  * The source as 8-bit RGB with alpha composited over the light colour and the greyscale,
- * contrast, and fade applied. Done once per render so the resample loops stay tight.
- * Contrast and fade are affine, so applying them before interpolation is the same as after,
- * up to clamping at the extremes.
+ * contrast, silhouette cut, and fade applied. Done once per render so the resample loops stay
+ * tight. Contrast and fade are affine, so applying them before interpolation is the same as
+ * after, up to clamping at the extremes. The cut is not affine, which is exactly why it has to
+ * happen here on source pixels: thresholding after resampling would leave a soft, grey edge.
  */
 function prepareSource(image: RasterImage, o: Resolved): Uint8ClampedArray {
 	const n = image.width * image.height;
 	const channels = image.data.length >= n * 4 ? 4 : 3;
 	const out = new Uint8ClampedArray(n * 3);
 	const [lr, lg, lb] = o.light;
-	const gray = o.grayscale;
+	const [dr, dg, db] = o.dark;
+	const cut = o.threshold;
+	// A silhouette is a luminance decision, so it always goes through grey first.
+	const gray = o.grayscale || cut !== undefined;
 	const contrast = o.contrast;
+	const cut255 = cut === undefined ? -1 : cut * 255;
 	const dim = o.imageDim;
 	const src = image.data;
 	for (let i = 0; i < n; i++) {
@@ -363,6 +400,18 @@ function prepareSource(image: RasterImage, o: Resolved): Uint8ClampedArray {
 			r = (r - 128) * contrast + 128;
 			g = (g - 128) * contrast + 128;
 			b = (b - 128) * contrast + 128;
+		}
+		if (cut255 >= 0) {
+			// r holds the (contrast-adjusted) luminance here because `gray` is forced on.
+			if (r < cut255) {
+				r = dr;
+				g = dg;
+				b = db;
+			} else {
+				r = lr;
+				g = lg;
+				b = lb;
+			}
 		}
 		if (dim > 0) {
 			r += (lr - r) * dim;

@@ -4,9 +4,13 @@ import {
 	halftoneVersionFor,
 	halftoneWithFallback,
 	imagePlacement,
+	prepareImage,
 	renderHalftone,
 	sizeForVersion,
 	verifyRaster,
+	THRESHOLD_DEFAULT,
+	THRESHOLD_MAX,
+	THRESHOLD_MIN,
 	type RasterImage
 } from '../src/index.js';
 
@@ -207,6 +211,135 @@ describe('renderHalftone', () => {
 	});
 });
 
+describe('silhouette threshold', () => {
+	const qr = halftoneQr();
+	const px = 8;
+	const quiet = 4;
+
+	/** Every pixel that is neither the dark nor the light colour, over the data area only. */
+	function midtones(r: RasterImage, dark = [0, 0, 0], light = [255, 255, 255]): number {
+		let n = 0;
+		const a0 = quiet * px;
+		const a1 = (quiet + qr.size) * px;
+		for (let y = a0; y < a1; y++) {
+			for (let x = a0; x < a1; x++) {
+				const c = pixel(r, x, y);
+				const isDark = c[0] === dark[0] && c[1] === dark[1] && c[2] === dark[2];
+				const isLight = c[0] === light[0] && c[1] === light[1] && c[2] === light[2];
+				if (!isDark && !isLight) n++;
+			}
+		}
+		return n;
+	}
+
+	it('reduces the picture to the two module colours', () => {
+		// A gradient has every grey; a mid-grey checker has two. Both must collapse to ink and paper,
+		// leaving only the bilinear edges between the two tones as midtones.
+		const total = (qr.size * px) ** 2;
+		const softGradient = renderHalftone(qr, gradient(), { pxPerModule: px, quietZone: quiet });
+		const hardGradient = renderHalftone(qr, gradient(), { pxPerModule: px, quietZone: quiet, threshold: THRESHOLD_DEFAULT });
+		expect(midtones(softGradient)).toBeGreaterThan(total * 0.5);
+		expect(midtones(hardGradient)).toBeLessThan(total * 0.05);
+		// The checker is nothing but edges, so proportionally more survive; still a fraction of before.
+		const softChecker = renderHalftone(qr, checker(), { pxPerModule: px, quietZone: quiet });
+		const hardChecker = renderHalftone(qr, checker(), { pxPerModule: px, quietZone: quiet, threshold: THRESHOLD_DEFAULT });
+		expect(midtones(hardChecker)).toBeLessThan(midtones(softChecker) * 0.25);
+	});
+
+	it('moves the cut with the threshold: a higher cut makes more of the picture dark', () => {
+		const darkCount = (threshold: number) => {
+			const r = renderHalftone(qr, gradient(), { pxPerModule: px, quietZone: quiet, threshold });
+			let n = 0;
+			for (let y = quiet * px; y < (quiet + qr.size) * px; y++)
+				for (let x = quiet * px; x < (quiet + qr.size) * px; x++) if (isBlack(pixel(r, x, y))) n++;
+			return n;
+		};
+		const low = darkCount(0.2);
+		const mid = darkCount(0.5);
+		const high = darkCount(0.8);
+		expect(mid).toBeGreaterThan(low);
+		expect(high).toBeGreaterThan(mid);
+		// A checker of 110 and 170 greys splits either side of the cut.
+		const c = checker(256, 8, 110, 170);
+		const between = renderHalftone(qr, c, { pxPerModule: px, quietZone: quiet, threshold: 140 / 255 });
+		const above = renderHalftone(qr, c, { pxPerModule: px, quietZone: quiet, threshold: 200 / 255 });
+		expect(midtones(between)).toBeGreaterThan(0); // cells alternate, so there are edges
+		expect(midtones(above)).toBe(0); // everything is darker than the cut: solid ink, no edges
+	});
+
+	it('paints the silhouette in the chosen ink and paper colours', () => {
+		const dark: [number, number, number] = [20, 40, 80];
+		const light: [number, number, number] = [250, 245, 230];
+		const r = renderHalftone(qr, gradient(), { pxPerModule: px, quietZone: quiet, threshold: 0.5, dark, light });
+		expect(midtones(r, dark, light)).toBeLessThan((qr.size * px) ** 2 * 0.05);
+	});
+
+	it('fades a silhouette toward the light colour so the ladder can still soften it', () => {
+		const hard = renderHalftone(qr, gradient(), { pxPerModule: px, quietZone: quiet, threshold: 0.5 });
+		const faded = renderHalftone(qr, gradient(), { pxPerModule: px, quietZone: quiet, threshold: 0.5, imageDim: 0.5 });
+		// A dark region of the silhouette becomes mid-grey; the dots stay pure.
+		let darkSeen = 0;
+		for (let my = 10; my < qr.size - 10 && darkSeen < 5; my++) {
+			for (let mx = 10; mx < qr.size - 10 && darkSeen < 5; mx++) {
+				if (qr.functionMask[my]![mx] === true) continue;
+				const x = (mx + quiet) * px;
+				const y = (my + quiet) * px;
+				if (!isBlack(pixel(hard, x, y))) continue;
+				darkSeen++;
+				const c = pixel(faded, x, y);
+				expect(c[0]).toBeGreaterThan(100);
+				expect(c[0]).toBeLessThan(160);
+			}
+		}
+		expect(darkSeen).toBe(5);
+	});
+
+	it('clamps the threshold and treats null like unset', () => {
+		const r = halftoneWithFallback(qr, gradient(), PAYLOAD, { threshold: 5 });
+		expect(r.opts.threshold).toBe(THRESHOLD_MAX);
+		const r2 = halftoneWithFallback(qr, gradient(), PAYLOAD, { threshold: -1 });
+		expect(r2.opts.threshold).toBe(THRESHOLD_MIN);
+		const r3 = halftoneWithFallback(qr, gradient(), PAYLOAD, { threshold: null as unknown as number });
+		expect(r3.opts.threshold).toBeUndefined();
+	});
+
+	it('still decodes a hard silhouette at 8 px and 3 px per module', () => {
+		for (const scale of [8, 3]) {
+			const r = renderHalftone(qr, gradient(), { pxPerModule: scale, quietZone: 4, threshold: 0.5 });
+			expect(verifyRaster(r, PAYLOAD)).toEqual({ ok: true, decoded: PAYLOAD });
+		}
+		// A pure black-and-white glyph made of big shapes: the case this feature exists for.
+		const glyph = disc(400);
+		expect(verifyRaster(renderHalftone(qr, glyph, { pxPerModule: 8, threshold: 0.5 }), PAYLOAD).ok).toBe(true);
+	});
+
+	it('prepareImage matches what the renderer blends', () => {
+		const img = gradient();
+		const prepared = prepareImage(img, { threshold: 0.5, dark: [1, 2, 3], light: [250, 251, 252] });
+		expect(prepared.width).toBe(img.width);
+		expect(prepared.height).toBe(img.height);
+		expect(prepared.data.length).toBe(img.width * img.height * 4);
+		let darks = 0;
+		let lights = 0;
+		for (let i = 0; i < img.width * img.height; i++) {
+			const p = i * 4;
+			const c = [prepared.data[p], prepared.data[p + 1], prepared.data[p + 2]];
+			expect(prepared.data[p + 3]).toBe(255);
+			if (c[0] === 1 && c[1] === 2 && c[2] === 3) darks++;
+			else if (c[0] === 250 && c[1] === 251 && c[2] === 252) lights++;
+			else throw new Error(`unexpected colour ${c.join(',')} at ${i}`);
+		}
+		expect(darks).toBeGreaterThan(0);
+		expect(lights).toBeGreaterThan(0);
+		// Without a threshold it is the plain picture, alpha composited: a solid RGBA source is unchanged.
+		const same = prepareImage(img);
+		expect(Array.from(same.data.slice(0, 8))).toEqual(Array.from(img.data.slice(0, 8)));
+		// A transparent pixel composites over the light colour before the cut.
+		const clear: RasterImage = { width: 1, height: 1, data: new Uint8ClampedArray([0, 0, 0, 0]) };
+		expect(Array.from(prepareImage(clear, { threshold: 0.5 }).data)).toEqual([255, 255, 255, 255]);
+	});
+});
+
 describe('imagePlacement', () => {
 	it('cover-fits by default and grows from the centre with zoom', () => {
 		// Landscape picture into a 100-unit square: height-limited, width overflows.
@@ -366,6 +499,21 @@ describe('halftoneWithFallback', () => {
 		expect(r.raster.width).toBe((qr.size + 4) * 6);
 	});
 });
+
+/** A black disc on white: a hard-edged glyph, the shape the silhouette mode exists for. */
+function disc(side: number): RasterImage {
+	const data = new Uint8ClampedArray(side * side * 4).fill(255);
+	const c = side / 2;
+	for (let y = 0; y < side; y++) {
+		for (let x = 0; x < side; x++) {
+			if (Math.hypot(x - c, y - c) <= side * 0.3) {
+				const p = (y * side + x) * 4;
+				data[p] = data[p + 1] = data[p + 2] = 0;
+			}
+		}
+	}
+	return { width: side, height: side, data };
+}
 
 /** Deterministic black/white noise at a fixed block size: the nastiest background there is. */
 function noiseImage(side: number): RasterImage {
