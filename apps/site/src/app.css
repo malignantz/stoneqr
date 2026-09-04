@@ -233,6 +233,24 @@ a:hover {
 }
 
 /* Segmented control */
+/* Built-in shape buttons in the Photo QR panel: a small white tile with the glyph drawn inside. */
+.glyph {
+	display: inline-flex;
+	padding: 0.25rem;
+	border: 1px solid var(--color-rule-2);
+	border-radius: 4px;
+	background: white;
+	cursor: pointer;
+	line-height: 0;
+}
+.glyph:hover {
+	border-color: var(--color-ink);
+}
+.glyph:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 1px;
+}
+
 .seg {
 	display: inline-flex;
 	border: 1px solid var(--color-rule-2);

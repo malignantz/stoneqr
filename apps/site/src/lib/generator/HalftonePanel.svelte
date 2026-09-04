@@ -1,6 +1,13 @@
 <script lang="ts">
-	import { IMAGE_ZOOM_MAX, IMAGE_ZOOM_MIN, IMAGE_OFFSET_MAX } from '@stoneqr/engine';
-	import type { Design } from './state.svelte';
+	import { IMAGE_ZOOM_MAX, IMAGE_ZOOM_MIN, IMAGE_OFFSET_MAX, THRESHOLD_MAX, THRESHOLD_MIN } from '@stoneqr/engine';
+	import { GLYPHS, glyphDataUrl, glyphName, glyphSvg, type Glyph } from '$lib/glyphs';
+	import type { Design, HalftoneTone } from './state.svelte';
+
+	const TONES: { value: HalftoneTone; label: string }[] = [
+		{ value: 'colour', label: 'Colour' },
+		{ value: 'grey', label: 'Black and white' },
+		{ value: 'silhouette', label: 'Silhouette' }
+	];
 
 	let { design, open = false, advanced = false }: { design: Design; open?: boolean; advanced?: boolean } = $props();
 
@@ -34,6 +41,16 @@
 			imageError = err instanceof Error ? err.message : String(err);
 		}
 		input.value = '';
+	}
+
+	/** A built-in shape is a silhouette by definition, so picking one switches the tone as well. */
+	function useGlyph(g: Glyph) {
+		imageError = '';
+		design.halftoneImage = glyphDataUrl(g);
+		design.halftoneImageName = glyphName(g);
+		design.halftone = true;
+		design.halftoneTone = 'silhouette';
+		resetCrop();
 	}
 
 	function resetCrop() {
@@ -81,7 +98,21 @@
 					onchange={onImage}
 					aria-label="Upload a photo to blend into the code"
 				/>
-				<p class="hint">Blend a photo into the code itself. PNG, JPEG, or WebP; the picture stays in your browser.</p>
+				<p class="hint">Blend a photo or a logo into the code itself. PNG, JPEG, or WebP; the picture stays in your browser.</p>
+				<span class="label mt-3">Or start from a shape</span>
+				<div class="flex flex-wrap gap-2" role="group" aria-label="Built-in shapes">
+					{#each GLYPHS as g (g.id)}
+						<button
+							type="button"
+							class="glyph"
+							title={g.label}
+							aria-label={`Use the ${g.label} shape`}
+							onclick={() => useGlyph(g)}
+						>
+							{@html glyphSvg(g, 40)}
+						</button>
+					{/each}
+				</div>
 			{/if}
 			{#if imageError}<p class="notice notice-block">{imageError}</p>{/if}
 		</div>
@@ -130,9 +161,27 @@
 					<span class="num w-14">{design.halftoneContrast.toFixed(2)}×</span>
 				</label>
 				{/if}
-				<label class="flex items-center gap-2 text-sm">
-					<input type="checkbox" bind:checked={design.halftoneGrayscale} /> Black and white picture
-				</label>
+				<div class="flex flex-wrap items-center gap-3 text-sm">
+					<span>Show as</span>
+					<div class="seg" role="group" aria-label="Picture tone">
+						{#each TONES as t (t.value)}
+							<button type="button" aria-pressed={design.halftoneTone === t.value} onclick={() => (design.halftoneTone = t.value)}>{t.label}</button>
+						{/each}
+					</div>
+				</div>
+				{#if design.halftoneSilhouette}
+					<label class="flex items-center gap-3 text-sm">
+						Cut
+						<span class="text-ink-3">Paper</span>
+						<input type="range" min={THRESHOLD_MIN} max={THRESHOLD_MAX} step="0.01" bind:value={design.halftoneThreshold} aria-label="Where the silhouette cuts between paper and ink" />
+						<span class="text-ink-3">Ink</span>
+						{#if advanced}<span class="num w-14">{Math.round(design.halftoneThreshold * 100)}%</span>{/if}
+					</label>
+					<p class="hint">
+						A silhouette turns the picture into solid blocks of ink and paper: right for a logo or a shape, wrong for a
+						photo. Drag toward Ink if parts of the shape are missing, toward Paper if the background fills in.
+					</p>
+				{/if}
 			</div>
 
 			{#if design.halftoneNote}
@@ -150,6 +199,6 @@
 			Error correction is forced to H and the code is enlarged to at least version 7 so the picture shows through. Every change
 			is decoded on your device before download unlocks.
 		</p>
-		<p class="hint">Photo codes download as PNG or SVG. {advanced ? 'Bigger dots and a faded picture scan more reliably in print.' : 'If a photo is hard to read in print, Advanced has dot size, fade, and contrast.'}</p>
+		<p class="hint">Picture codes download as PNG or SVG. {advanced ? 'Bigger dots and a faded picture scan more reliably in print.' : 'If a photo is hard to read in print, Advanced has dot size, fade, and contrast.'}</p>
 	</div>
 </details>

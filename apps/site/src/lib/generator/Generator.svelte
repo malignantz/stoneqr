@@ -20,8 +20,9 @@
 	let {
 		preset = 'url',
 		styleOpen = false,
+		photoOpen = false,
 		hero
-	}: { preset?: PayloadType; styleOpen?: boolean; hero?: Snippet } = $props();
+	}: { preset?: PayloadType; styleOpen?: boolean; photoOpen?: boolean; hero?: Snippet } = $props();
 
 	// Prerendering gets a fresh instance per page so no state leaks between routes at build time.
 	const design = browser ? (shared ??= new Design()) : new Design();
@@ -85,7 +86,7 @@
 		<hr class="rule my-6" />
 		<StylePanel {design} open={styleOpen} {advanced} />
 		<hr class="rule my-6" />
-		<HalftonePanel {design} open={design.halftoneActive} {advanced} />
+		<HalftonePanel {design} open={photoOpen || design.halftoneActive} {advanced} />
 	</div>
 	<div class="order-1 lg:order-2 lg:sticky lg:top-6 lg:self-start">
 		<Preview {design} />

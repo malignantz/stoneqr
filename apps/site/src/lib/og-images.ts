@@ -5,6 +5,7 @@ export const OG_IMAGES: ReadonlySet<string> = new Set([
 	'vcard',
 	'event',
 	'logo',
+	'photo',
 	'bulk',
 	'print-size',
 	'compare',

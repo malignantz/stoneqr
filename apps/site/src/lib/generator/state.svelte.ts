@@ -6,6 +6,7 @@ import {
 	encode,
 	halftoneVersionFor,
 	renderSvg,
+	THRESHOLD_DEFAULT,
 	assess,
 	summary,
 	moduleMm,
@@ -80,6 +81,8 @@ export function defaultFields(): Fields {
 
 export type VerifyState = 'idle' | 'checking' | 'ok' | 'fail';
 
+export type HalftoneTone = 'colour' | 'grey' | 'silhouette';
+
 export class Design {
 	type = $state<PayloadType>('url');
 	fields = $state<Fields>(defaultFields());
@@ -124,6 +127,12 @@ export class Design {
 	halftoneDim = $state(0);
 	halftoneGrayscale = $state(false);
 	halftoneContrast = $state(1);
+	/**
+	 * Silhouette: the picture reduced to ink and paper at `halftoneThreshold`, so a logo or a
+	 * built-in shape comes out as crisp blocks rather than a soft photograph.
+	 */
+	halftoneSilhouette = $state(false);
+	halftoneThreshold = $state(THRESHOLD_DEFAULT);
 	/** Picture zoom relative to cover-fit (1 fills the data area) and its position as a fraction of the area. */
 	halftoneZoom = $state(1);
 	halftoneOffsetX = $state(0);
@@ -140,6 +149,15 @@ export class Design {
 
 	/** True when the artistic renderer owns the preview; it takes precedence over the styled one. */
 	halftoneActive = $derived(this.halftone && !!this.halftoneImage);
+
+	/** How the picture is shown: in colour, in greys, or as a two-tone silhouette. One control, two flags. */
+	get halftoneTone(): HalftoneTone {
+		return this.halftoneSilhouette ? 'silhouette' : this.halftoneGrayscale ? 'grey' : 'colour';
+	}
+	set halftoneTone(tone: HalftoneTone) {
+		this.halftoneSilhouette = tone === 'silhouette';
+		this.halftoneGrayscale = tone === 'grey';
+	}
 
 	/** Effective ECC: forced to H whenever a logo or a halftone picture is present. */
 	ecc = $derived<Ecc>(this.logo || this.halftoneActive ? 'H' : this.eccChoice);

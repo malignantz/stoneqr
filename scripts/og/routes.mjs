@@ -40,6 +40,13 @@ export const OG_ROUTES = [
 		kicker: 'QR CODE WITH LOGO · FREE · NO SIGN-UP'
 	},
 	{
+		slug: 'photo',
+		path: '/photo',
+		headline: 'A picture inside the code, and it still scans.',
+		sub: 'A photo, a logo, or a built-in shape drawn in the modules themselves, decode-checked before download.',
+		kicker: 'PHOTO QR CODE · FREE · NO SIGN-UP'
+	},
+	{
 		slug: 'bulk',
 		path: '/bulk',
 		headline: 'Hundreds of codes, one download.',

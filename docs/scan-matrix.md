@@ -50,6 +50,21 @@ The frame sits outside the quiet zone; the print width is the code, the artwork 
 | 30 mm | – | – | – | |
 | 50 mm | – | – | – | |
 
+## Halftone, silhouette tone (built-in WiFi shape, cut 50%, dotScale 0.4) — "Silhouette" in the interface
+
+A silhouette puts most of the dark modules inside solid ink regions, where only the light dots carry information; blur or a small print turns those dots grey first. Added 2026-09-03 with the tone; untested until the rows fill in.
+
+| Size | iPhone Camera | Android Camera | Google Lens | Notes |
+|---|---|---|---|---|
+| 30 mm | – | – | – | light dots inside the ink arcs are the weak point |
+| 50 mm | – | – | – | |
+
+## Halftone, silhouette from an uploaded logo (cut adjusted so the mark is solid) — "Silhouette" in the interface
+
+| Size | iPhone Camera | Android Camera | Google Lens | Notes |
+|---|---|---|---|---|
+| 50 mm | – | – | – | use a real logo with a coloured background; note the cut that made it read |
+
 ## Halftone, zoomed 2× and shifted 25% (busy crop) — "Photo QR" in the interface
 
 | Size | iPhone Camera | Android Camera | Google Lens | Notes |

@@ -6,6 +6,7 @@
   <url><loc>https://stoneqr.app/vcard</loc><priority>0.8</priority></url>
   <url><loc>https://stoneqr.app/event</loc><priority>0.7</priority></url>
   <url><loc>https://stoneqr.app/logo</loc><priority>0.8</priority></url>
+  <url><loc>https://stoneqr.app/photo</loc><priority>0.8</priority></url>
   <url><loc>https://stoneqr.app/print-size</loc><priority>0.8</priority></url>
   <url><loc>https://stoneqr.app/bulk</loc><priority>0.7</priority></url>
   <url><loc>https://stoneqr.app/compare</loc><priority>0.6</priority></url>

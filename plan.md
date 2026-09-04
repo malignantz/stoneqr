@@ -2,7 +2,7 @@
 
 *QR codes set in stone. Generated in your browser, never expire.*
 
-Status: plan only, nothing built. Written 2026-09-02. This document is self-contained; the broader SignUpCity context lives in the private `signupcity` repo. Technical research behind the library and sizing choices is in `docs/research/qr-technical.md`.
+Status: written 2026-09-02; M1 to M8 built; the silhouette tone, built-in shapes, and `/photo` added 2026-09-03 (section 7 and milestone M9). This document is self-contained; the broader SignUpCity context lives in the private `signupcity` repo. Technical research behind the library and sizing choices is in `docs/research/qr-technical.md`.
 
 ---
 
@@ -49,7 +49,7 @@ QRCode Monkey is the best free static designer today, but its upsell hands users
 
 **Style controls:** foreground and background colours with a contrast check (warn under 4:1; warn when inverted, light on dark), dot shape (square, rounded, dots), corner square and corner dot styles, optional linear or radial gradient, centre logo (raster upload that stays in the browser; size slider capped at 25% of area, warning above 20%; optional white knockout behind the logo), frame with call-to-action text ("Scan to RSVP", "Scan for menu", custom).
 
-**Artistic (halftone) mode:** blend a background image into the module grid, function patterns kept solid, data modules drawn as centred dots over the image, error correction forced to H, decode verification required before download is enabled.
+**Artistic (halftone) mode:** blend a background image into the module grid, function patterns kept solid, data modules drawn as centred dots over the image, error correction forced to H, decode verification required before download is enabled. Three tones: colour, black and white, and silhouette, which reduces the picture to ink and paper at an adjustable cut so a logo or an icon comes out as crisp blocks; seven built-in shapes (WiFi, heart, star, arrow, map pin, envelope, tick) load as silhouettes in one click.
 
 **Sizing calculator:** input the intended print width (mm, cm, in) or the intended scan distance; output the module size, the minimum recommended width, the maximum reliable scan distance, and plain-language warnings. Standalone page as well as a panel in the generator.
 
@@ -64,6 +64,7 @@ QRCode Monkey is the best free static designer today, but its upsell hands users
 ### Later (not v1)
 
 - SVG logo embedding (v1 accepts raster only).
+- QArt bit steering (Russ Cox, 2012): choose the padding codewords so the data region itself draws a one-bit picture, with the whole error-correction budget intact. Researched 2026-09-03 (`docs/research/artistic-qr.md` sections 4 and 7): no JavaScript implementation exists, `@paulmillr/qr` already exposes the template, the placement order with the mask, and the linear data-to-codeword map, so a padding-only module is about 300 to 400 lines plus tests; URL and text only; worth it at ECC L or M and a denser version (a 30-byte URL at version 10, ECC M, steers about half the data region), poor at H. Gate before any interface work: a spike that decodes on three phones at ECC M, version 10, from a 50 mm print. Reference implementation is BSD-3, so a port carries its notice.
 - Micro QR and rectangular Micro QR via bwip-js (phone camera support is inconsistent; needs a scan matrix first).
 - Animated or GIF halftone.
 - A "save my designs" feature using browser storage only (no accounts).
@@ -186,7 +187,7 @@ Copy examples the panel should produce:
 
 1. Encode at ECC H. Raise `minVersion` so the symbol has at least about 1,000 modules (version 7 or higher) when an image is present, so the picture reads.
 2. Compute the function-pattern mask for that version.
-3. Draw the image, cover-fitted to the data area (inside the quiet zone), with optional greyscale and contrast stretch controls, plus zoom (0.5× to 3×, 1× = cover-fit) and a position offset so a non-square picture can be cropped to the part that matters. The placement math is shared by the raster and the SVG export.
+3. Draw the image, cover-fitted to the data area (inside the quiet zone), with optional greyscale and contrast stretch controls, plus zoom (0.5× to 3×, 1× = cover-fit) and a position offset so a non-square picture can be cropped to the part that matters. The placement math is shared by the raster and the SVG export. An optional silhouette cut (a luminance threshold, 0.05 to 0.95, default 0.5, applied after contrast and before the fade) reduces the picture to the two module colours on the source pixels, before resampling, so the edge stays crisp; this is the whole of the "shape made of blocks" look (research in `docs/research/artistic-qr.md`). The SVG export reproduces the cut with a steep `feComponentTransfer` ramp and a two-entry colour table on the original picture, so the vector matches the verified raster.
 4. Function-pattern cells: solid dark or light. Data cells: a centred dot at `dotScale` of the module width (default 0.4) in dark or light, leaving the image visible around it.
 5. Render at 8 px per module for verification.
 6. Verify with the decoder. On failure: try `dotScale` 0.5, then dim the image 20%, then tell the user which adjustment to make (bigger dots, lighter image, shorter content).
@@ -221,6 +222,7 @@ Follow the ZXing "Barcode Contents" conventions.
 | `/bulk` | Bulk and label sheets | "bulk qr code generator", "qr code labels avery" |
 | `/print-size` | Standalone sizing calculator | "how big should a qr code be", "qr code size calculator" |
 | `/logo` | Generator with logo panel open | "qr code with logo free" |
+| `/photo` | Generator with the Photo QR panel open, built-in shapes one click away | "photo qr code", "qr code with picture", "artistic qr code generator" |
 | `/compare` | Factual table: expiry, SVG, logo, ECC control, sign-up required, ads | "qr code generator comparison", "qrcode monkey alternative" |
 | `/open-source` | Repo link, license, how to verify nothing leaves the browser | trust |
 | `/privacy` | Two paragraphs | trust |
@@ -279,6 +281,7 @@ Effort is in evenings, assuming Claude Code does most of the typing and Garrett 
 6. **M6 Bulk and labels (2 evenings):** CSV and pasted lists, Web Worker generation, ZIP download, label-sheet PDF with Avery geometry verified against Avery's downloadable templates.
 7. **M7 Site and SEO (2 evenings):** all marketing routes with their explainers, `/compare` table with sources, `/never-expires` story, Open Graph images (static per route), Cloudflare Web Analytics, README and LICENSE, publish `@stoneqr/engine` to npm.
 8. **M8 Dynamic hand-off (1 evening, after SignUpCity's links exist):** the button, the return flow, the policy text.
+9. **M9 Silhouette and shapes (1 evening, built 2026-09-03):** the engine's threshold option and `prepareImage`, the Silhouette tone with its Cut slider in Basic, seven built-in shapes, the matching SVG filter, the `/photo` route with its card, and silhouette rows in the scan matrix.
 
 Launch after M7. M8 can follow.
 

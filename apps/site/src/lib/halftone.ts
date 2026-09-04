@@ -2,7 +2,7 @@
  * Browser glue for the engine's halftone renderer (plan §7). Browser only.
  * The uploaded picture is decoded on a canvas and never leaves the device.
  */
-import { escapeXml, imagePlacement, type EncodedQr, type HalftoneOptions, type RasterImage } from '@stoneqr/engine';
+import { escapeXml, imagePlacement, THRESHOLD_MAX, THRESHOLD_MIN, type EncodedQr, type HalftoneOptions, type RasterImage } from '@stoneqr/engine';
 
 /** Decode a data URL onto a canvas and return its pixels, downscaled so the long side fits `maxSide`. */
 export async function loadImageRaster(dataUrl: string, maxSide = 1024): Promise<RasterImage> {
@@ -125,22 +125,46 @@ export function halftonePath(
 	return d;
 }
 
-/** An SVG filter reproducing the greyscale / contrast / fade the raster preview shows. */
-function imageFilter(opts: HalftoneOptions): { defs: string; attr: string } {
+/** How steep the silhouette cut is in the SVG filter: 512 makes the grey band narrower than one 8-bit level. */
+export const SVG_THRESHOLD_SLOPE = 512;
+
+/**
+ * An SVG filter reproducing the greyscale / contrast / silhouette / fade the raster preview
+ * shows, in the order the engine's prepareSource applies them.
+ */
+export function imageFilter(opts: HalftoneOptions): { defs: string; attr: string } {
 	const dim = Math.min(1, Math.max(0, opts.imageDim ?? 0));
 	const contrast = Math.min(2, Math.max(0.5, opts.contrast ?? 1));
-	const gray = opts.grayscale === true;
+	const cut = opts.threshold === undefined || opts.threshold === null ? undefined : Math.min(THRESHOLD_MAX, Math.max(THRESHOLD_MIN, opts.threshold));
+	const gray = opts.grayscale === true || cut !== undefined;
 	if (!gray && dim === 0 && contrast === 1) return { defs: '', attr: '' };
 	const id = 'sq-halftone-adjust';
-	// Contrast around mid-grey, then a linear fade toward white, matching adjust() in the engine.
-	const slope = num(contrast * (1 - dim));
-	const intercept = num(((128 - 128 * contrast) / 255) * (1 - dim) + dim);
 	const grayscale = gray ? `<feColorMatrix type="saturate" values="0"/>` : '';
-	const transfer = ['R', 'G', 'B']
-		.map((c) => `<feFunc${c} type="linear" slope="${slope}" intercept="${intercept}"/>`)
-		.join('');
+	const linear = (slope: string, intercept: string) =>
+		`<feComponentTransfer>${['R', 'G', 'B'].map((c) => `<feFunc${c} type="linear" slope="${slope}" intercept="${intercept}"/>`).join('')}</feComponentTransfer>`;
+	let stages: string;
+	if (cut === undefined) {
+		// Contrast around mid-grey, then a linear fade toward white, matching the engine.
+		stages = linear(num(contrast * (1 - dim)), num(((128 - 128 * contrast) / 255) * (1 - dim) + dim));
+	} else {
+		// Contrast first, then a near-vertical ramp at the cut so every pixel lands on 0 or 1, then a
+		// two-entry table that maps 0 to the ink colour and 1 to the paper colour. The fade is folded
+		// into the table: the ink end moves toward paper, exactly as the engine fades a silhouette.
+		const dark = opts.dark ?? [0, 0, 0];
+		const light = opts.light ?? [255, 255, 255];
+		const contrastStage = contrast === 1 ? '' : linear(num(contrast), num((128 - 128 * contrast) / 255));
+		const cutStage = linear(String(SVG_THRESHOLD_SLOPE), num(0.5 - SVG_THRESHOLD_SLOPE * cut));
+		const table = ['R', 'G', 'B']
+			.map((c, i) => {
+				const d = (dark[i]! + (light[i]! - dark[i]!) * dim) / 255;
+				const l = light[i]! / 255;
+				return `<feFunc${c} type="table" tableValues="${num(d)} ${num(l)}"/>`;
+			})
+			.join('');
+		stages = `${contrastStage}${cutStage}<feComponentTransfer>${table}</feComponentTransfer>`;
+	}
 	return {
-		defs: `<filter id="${id}" color-interpolation-filters="sRGB">${grayscale}<feComponentTransfer>${transfer}</feComponentTransfer></filter>`,
+		defs: `<filter id="${id}" color-interpolation-filters="sRGB">${grayscale}${stages}</filter>`,
 		attr: ` filter="url(#${id})"`
 	};
 }

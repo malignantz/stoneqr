@@ -44,6 +44,7 @@
 			imageDim: design.halftoneDim,
 			grayscale: design.halftoneGrayscale,
 			contrast: design.halftoneContrast,
+			threshold: design.halftoneSilhouette ? design.halftoneThreshold : undefined,
 			imageZoom: design.halftoneZoom,
 			imageOffsetX: design.halftoneOffsetX,
 			imageOffsetY: design.halftoneOffsetY
