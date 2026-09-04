@@ -1,6 +1,6 @@
 # UI refresh: cleaner, calmer, more obvious
 
-Status: planned 2026-09-04, nothing built yet. Milestone M10 in `plan.md`. This is the design
+Status: planned 2026-09-04. Phases 0 and 1 built 2026-09-04; phases 2 to 5 open. Milestone M10 in `plan.md`. This is the design
 contract for the refresh; the rules in `CLAUDE.md` (Basic/Advanced split, `advancedInUse`, the
 hero row, "Photo QR" naming, the bundle budget, the decode check) all stay in force.
 
@@ -180,6 +180,24 @@ off screen at 375 px or 1440 px. Contrast readouts and the frame colours behave 
 the five Style colours and by Phase 5 on `/bulk`.
 
 ---
+
+### 3b. What Phase 0 settled
+
+Built 2026-09-04. Two things came out differently from the sketch above, both measured rather
+than guessed:
+
+- **The left column stays at 22 rem.** The plan expected to widen it to 24 rem for five tiles.
+  Measured at 1440 px, the five module tiles land at 59 px each on one row inside the existing
+  column, and the four corner tiles at 73 px, so the column was left alone and the preview keeps
+  its width.
+- **`<details>` is gone from the generator.** `SectionHeader` owns a plain boolean instead, which
+  removes the whole class of bug the two panels carried a comment about: Svelte merges a block's
+  dynamic attributes into one effect, so `details.open = open` was reasserted whenever a sibling
+  attribute changed, and ticking "Transparent background" slammed the Style panel shut.
+
+Cost: the generator page's eagerly loaded client JavaScript went from 85.4 KB to 91.4 KB gzipped,
+against the 150 KB budget. Photo QR took the new header in the same pass so the site has one
+chevron; the rest of that panel is still Phase 4.
 
 ## 4. Phase 1: Style panel
 

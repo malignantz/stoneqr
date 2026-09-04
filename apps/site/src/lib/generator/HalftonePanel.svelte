@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { IMAGE_ZOOM_MAX, IMAGE_ZOOM_MIN, IMAGE_OFFSET_MAX, THRESHOLD_MAX, THRESHOLD_MIN } from '@stoneqr/engine';
 	import { GLYPHS, glyphDataUrl, glyphName, glyphSvg, type Glyph } from '$lib/glyphs';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import type { Design, HalftoneTone } from './state.svelte';
 
 	const TONES: { value: HalftoneTone; label: string }[] = [
@@ -21,6 +22,13 @@
 	let panelOpen = $state(untrack(() => open));
 	$effect(() => {
 		if (open) panelOpen = true;
+	});
+
+	/** What the panel says about itself when folded, so nothing is hidden by folding. */
+	const summary = $derived.by(() => {
+		if (!design.halftoneImage) return '';
+		const tone = TONES.find((t) => t.value === design.halftoneTone)?.label ?? '';
+		return [design.halftoneImageName, design.halftone ? tone : 'off'].filter(Boolean).join(' · ');
 	});
 
 	let imageError = $state('');
@@ -82,13 +90,10 @@
 	}
 </script>
 
-<details class="group" open={panelOpen} ontoggle={(e) => (panelOpen = e.currentTarget.open)}>
-	<summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 select-none">
-		<h2 class="text-xl">Photo QR</h2>
-		<span class="ticket transition-transform group-open:rotate-90">▶</span>
-	</summary>
+<SectionHeader title="Photo QR" collapsible bind:open={panelOpen} {summary} controls="photo-body" />
 
-	<div class="mt-4 grid gap-5">
+{#if panelOpen}
+	<div id="photo-body" class="mt-4 grid gap-5">
 		<div class="field">
 			<span class="label">Picture</span>
 			{#if design.halftoneImage}
@@ -213,4 +218,4 @@
 		</p>
 		<p class="hint">Picture codes download as PNG or SVG. {advanced ? 'Bigger dots and a faded picture scan more reliably in print.' : 'If a photo is hard to read in print, Advanced has dot size, fade, and contrast.'}</p>
 	</div>
-</details>
+{/if}

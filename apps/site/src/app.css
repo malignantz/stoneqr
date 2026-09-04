@@ -232,25 +232,459 @@ a:hover {
 	font-size: 0.85rem;
 }
 
-/* Segmented control */
-/* Built-in shape buttons in the Photo QR panel: a small white tile with the glyph drawn inside. */
-.glyph {
+/*
+ * Grouping inside a panel: a ticket label with a hairline running to the right edge, so a long
+ * panel reads as four or five named groups rather than one column of controls.
+ */
+.subhead {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	font-family: var(--font-mono);
+	font-size: 0.68rem;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--color-ink-3);
+}
+.subhead::after {
+	content: '';
+	flex: 1;
+	height: 1px;
+	background: var(--color-rule);
+}
+/* A badge or readout pinned after the rule, e.g. the contrast reading beside COLOURS. */
+.subhead > .subhead-end {
+	flex: 0 0 auto;
+}
+.subhead:has(> .subhead-end)::after {
+	margin-right: 0.1rem;
+}
+
+/*
+ * The shared control row: label, control, readout. Every slider and short field in a panel sits
+ * on this grid, so the three columns line up down the whole panel however long the words are.
+ */
+.row {
+	display: grid;
+	grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0.65rem;
+	font-size: 0.9rem;
+}
+.row-label {
+	color: var(--color-ink-2);
+}
+.row-readout {
 	display: inline-flex;
-	padding: 0.25rem;
+	align-items: center;
+	gap: 0.35rem;
+	justify-content: flex-end;
+	min-width: 4.2rem;
+	font-size: 0.85rem;
+	color: var(--color-ink-2);
+}
+
+/*
+ * Range inputs. The track is painted in two halves from --fill so the filled part reads as a
+ * measurement, like the sliders on a proofing desk. Both engines need their own selectors and
+ * neither accepts them in one rule, so the blocks are duplicated on purpose.
+ */
+.range {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 100%;
+	height: 1.25rem;
+	background: transparent;
+	cursor: pointer;
+}
+.range:disabled {
+	cursor: not-allowed;
+}
+.range::-webkit-slider-runnable-track {
+	height: 3px;
+	border-radius: 999px;
+	background: linear-gradient(
+		to right,
+		var(--color-ink) 0 var(--fill, 50%),
+		var(--color-rule-2) var(--fill, 50%) 100%
+	);
+}
+.range::-moz-range-track {
+	height: 3px;
+	border-radius: 999px;
+	background: linear-gradient(
+		to right,
+		var(--color-ink) 0 var(--fill, 50%),
+		var(--color-rule-2) var(--fill, 50%) 100%
+	);
+}
+.range::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	margin-top: -6px;
+	width: 15px;
+	height: 15px;
+	border-radius: 999px;
+	background: white;
+	border: 1px solid var(--color-ink);
+	box-shadow: 0 1px 2px color-mix(in oklab, var(--color-ink) 25%, transparent);
+	transition: transform 80ms;
+}
+.range::-moz-range-thumb {
+	width: 15px;
+	height: 15px;
+	border-radius: 999px;
+	background: white;
+	border: 1px solid var(--color-ink);
+	box-shadow: 0 1px 2px color-mix(in oklab, var(--color-ink) 25%, transparent);
+}
+.range:active::-webkit-slider-thumb {
+	transform: scale(1.12);
+}
+.range:focus-visible {
+	outline: none;
+}
+.range:focus-visible::-webkit-slider-thumb {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
+}
+.range:focus-visible::-moz-range-thumb {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
+}
+/* The hue strip in the colour picker: the spectrum itself is the track. */
+.range-hue::-webkit-slider-runnable-track {
+	height: 10px;
+	border-radius: 999px;
 	border: 1px solid var(--color-rule-2);
-	border-radius: 4px;
+	background: linear-gradient(
+		to right,
+		#f00 0%,
+		#ff0 17%,
+		#0f0 33%,
+		#0ff 50%,
+		#00f 67%,
+		#f0f 83%,
+		#f00 100%
+	);
+}
+.range-hue::-moz-range-track {
+	height: 10px;
+	border-radius: 999px;
+	border: 1px solid var(--color-rule-2);
+	background: linear-gradient(
+		to right,
+		#f00 0%,
+		#ff0 17%,
+		#0f0 33%,
+		#0ff 50%,
+		#00f 67%,
+		#f0f 83%,
+		#f00 100%
+	);
+}
+.range-hue::-webkit-slider-thumb {
+	margin-top: -4px;
+	width: 16px;
+	height: 16px;
+}
+
+/*
+ * Drawn choices. A tile holds a small picture of what the option does, with its name underneath;
+ * the grid that lays them out fixes its own column count, so a group never wraps one tile onto a
+ * row of its own.
+ */
+.swatch {
+	display: grid;
+	justify-items: center;
+	gap: 0.25rem;
+	padding: 0.3rem 0.15rem 0.35rem;
+	border: 1px solid var(--color-rule-2);
+	border-radius: 5px;
 	background: white;
 	cursor: pointer;
-	line-height: 0;
+	transition: border-color 120ms, background 120ms, box-shadow 120ms;
 }
-.glyph:hover {
+.swatch:hover:not(:disabled) {
+	border-color: var(--color-ink-3);
+}
+.swatch[data-on='true'] {
 	border-color: var(--color-ink);
+	box-shadow: inset 0 0 0 1px var(--color-ink);
 }
-.glyph:focus-visible {
+.swatch:disabled {
+	cursor: not-allowed;
+}
+.swatch:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 1px;
+}
+.swatch-art {
+	display: grid;
+	place-items: center;
+	width: 100%;
+	aspect-ratio: 1;
+	line-height: 0;
+	color: var(--color-ink);
+}
+.swatch-art > svg {
+	width: 100%;
+	height: 100%;
+}
+.swatch-name {
+	font-family: var(--font-mono);
+	font-size: 0.58rem;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--color-ink-3);
+	line-height: 1.1;
+	text-align: center;
+}
+.swatch[data-on='true'] .swatch-name {
+	color: var(--color-ink);
+}
+
+/* The picture input: a dashed tile that takes a drop or a click. */
+.drop {
+	position: relative;
+	display: grid;
+	justify-items: center;
+	gap: 0.3rem;
+	padding: 1.1rem 0.9rem;
+	border: 1px dashed var(--color-rule-2);
+	border-radius: 6px;
+	background: color-mix(in oklab, white 45%, transparent);
+	text-align: center;
+	transition: border-color 120ms, background 120ms;
+}
+.drop:hover,
+.drop[data-over='true'] {
+	border-color: var(--color-accent);
+	background: color-mix(in oklab, var(--color-accent-soft) 40%, white);
+}
+/* The real file input covers the tile, so click, keyboard, and the picker stay the browser's. */
+.drop > input[type='file'] {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	cursor: pointer;
+}
+.drop:has(> input:focus-visible) {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
+}
+
+/* An on/off decision that reveals more controls. Plain checkboxes stay for flags in a form. */
+.toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.55rem;
+	font-size: 0.9rem;
+	color: var(--color-ink);
+	cursor: pointer;
+}
+.toggle > input {
+	appearance: none;
+	flex: 0 0 auto;
+	width: 2rem;
+	height: 1.1rem;
+	border-radius: 999px;
+	border: 1px solid var(--color-rule-2);
+	background: white;
+	position: relative;
+	cursor: pointer;
+	transition: background 120ms, border-color 120ms;
+}
+.toggle > input::after {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: 2px;
+	width: 0.8rem;
+	height: 0.8rem;
+	border-radius: 999px;
+	background: var(--color-ink-3);
+	transform: translate(0, -50%);
+	transition: transform 140ms cubic-bezier(0.2, 0.7, 0.2, 1), background 120ms;
+}
+.toggle > input:checked {
+	background: var(--color-accent);
+	border-color: var(--color-accent);
+}
+.toggle > input:checked::after {
+	background: white;
+	transform: translate(0.9rem, -50%);
+}
+.toggle > input:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
+}
+.toggle > input:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+/* A colour swatch that opens the picker. */
+.swatch-well {
+	flex: 0 0 auto;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 5px;
+	border: 1px solid var(--color-rule-2);
+	background:
+		linear-gradient(var(--well), var(--well)),
+		repeating-conic-gradient(#e6e1d6 0 25%, white 0 50%) 0 0 / 10px 10px;
+	cursor: pointer;
+	transition: border-color 120ms, box-shadow 120ms;
+}
+.swatch-well:hover:not(:disabled) {
+	border-color: var(--color-ink-3);
+}
+.swatch-well:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
+}
+.swatch-well:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+/*
+ * The colour picker card. It is a modal <dialog>, so the browser holds it in the top layer and
+ * makes the page inert: a press outside lands on ::backdrop and closes the card without reaching
+ * whatever sits underneath. The backdrop is transparent, so the page looks untouched.
+ */
+.picker {
+	position: fixed;
+	margin: 0;
+	padding: 0;
+	width: 236px;
+	border: 1px solid var(--color-rule-2);
+	border-radius: 8px;
+	background: color-mix(in oklab, white 70%, var(--color-paper));
+	color: var(--color-ink);
+	box-shadow:
+		0 1px 0 color-mix(in oklab, var(--color-ink) 5%, transparent),
+		0 18px 40px -20px color-mix(in oklab, var(--color-ink) 55%, transparent);
+}
+.picker::backdrop {
+	background: transparent;
+}
+@media (prefers-reduced-motion: no-preference) {
+	.picker[open] {
+		animation: picker-in 120ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+	}
+	@keyframes picker-in {
+		from {
+			opacity: 0;
+			transform: translateY(-4px);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+}
+.picker-square {
+	position: relative;
+	width: 100%;
+	height: 140px;
+	border-radius: 5px;
+	border: 1px solid var(--color-rule-2);
+	cursor: crosshair;
+	touch-action: none;
+	background:
+		linear-gradient(to top, #000, transparent),
+		linear-gradient(to right, #fff, transparent),
+		hsl(var(--hue) 100% 50%);
+}
+.picker-square:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
+}
+.picker-handle {
+	position: absolute;
+	width: 13px;
+	height: 13px;
+	margin: -6.5px 0 0 -6.5px;
+	border-radius: 999px;
+	border: 2px solid white;
+	box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-ink) 45%, transparent);
+	pointer-events: none;
+}
+.picker-preview {
+	flex: 0 0 auto;
+	width: 1.6rem;
+	height: 1.6rem;
+	border-radius: 4px;
+	border: 1px solid var(--color-rule-2);
+}
+.picker-tool {
+	flex: 0 0 auto;
+	display: grid;
+	place-items: center;
+	width: 1.75rem;
+	height: 1.75rem;
+	border-radius: 4px;
+	border: 1px solid var(--color-rule-2);
+	background: white;
+	color: var(--color-ink-2);
+	cursor: pointer;
+}
+.picker-tool:hover {
+	border-color: var(--color-ink-3);
+	color: var(--color-ink);
+}
+.picker-tool:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 1px;
+}
+.picker-chip {
+	display: grid;
+	place-items: center;
+	width: 1.4rem;
+	height: 1.4rem;
+	border-radius: 4px;
+	border: 1px solid color-mix(in oklab, var(--color-ink) 22%, transparent);
+	cursor: pointer;
+}
+.picker-chip:focus-visible {
 	outline: 2px solid var(--color-accent);
 	outline-offset: 1px;
 }
 
+/*
+ * A small pill for a suggestion or a preset: the call-to-action wordings, the size presets, the
+ * content types. One class, so the three places that used slightly different inline borders now
+ * look the same.
+ */
+.chip {
+	border: 1px solid var(--color-rule-2);
+	border-radius: 999px;
+	background: white;
+	padding: 0.2rem 0.6rem;
+	font-size: 0.78rem;
+	color: var(--color-ink-2);
+	cursor: pointer;
+	transition: border-color 120ms, background 120ms, color 120ms;
+}
+.chip:hover {
+	border-color: var(--color-ink-3);
+	color: var(--color-ink);
+}
+.chip[data-on='true'] {
+	border-color: var(--color-ink);
+	background: var(--color-ink);
+	color: var(--color-paper);
+}
+.chip:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 1px;
+}
+
+/* Segmented control */
 .seg {
 	display: inline-flex;
 	border: 1px solid var(--color-rule-2);
