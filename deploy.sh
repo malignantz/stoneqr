@@ -31,4 +31,36 @@ fi
 
 echo "→ Deploying ./$DIST to Cloudflare Pages project '$PROJECT'"
 npx wrangler pages deploy "$DIST" --project-name "$PROJECT"
-echo "✓ Done. Verify at https://stoneqr.app"
+
+# Pages can serve the new index.html before every hashed asset is reachable from every edge. In
+# that window a request for a missing asset gets the not-found page, and the _headers rule for
+# /_app/immutable/* stamps it with a one-year immutable cache header, so the edge and the first
+# browser to ask keep a broken page (seen 2026-09-04). Poll with a throwaway query string, which
+# has its own cache key, so the checks can never poison the canonical one; once every asset is
+# right, fetch the canonical URLs once to warm them with the real files.
+ORIGIN="https://stoneqr.app"
+echo "→ Waiting for every asset to be served from $ORIGIN"
+ASSETS=$(cd "$DIST" && find _app/immutable -type f \( -name '*.js' -o -name '*.css' \) | sort)
+COUNT=$(echo "$ASSETS" | wc -l | tr -d ' ')
+check() {
+  local ct
+  ct=$(curl -s -o /dev/null -w '%{content_type}' -H 'Accept-Encoding: gzip, deflate, br' "$ORIGIN/$1?check=$2")
+  case "$1:$ct" in
+    *.js:application/javascript*|*.css:text/css*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+missing=1
+for attempt in $(seq 1 24); do
+  missing=0
+  for f in $ASSETS; do check "$f" "$attempt$(date +%s)" || missing=$((missing + 1)); done
+  [[ $missing -eq 0 ]] && break
+  echo "  $missing of $COUNT assets not served yet (attempt $attempt of 24), waiting 5 s"
+  sleep 5
+done
+if [[ $missing -ne 0 ]]; then
+  echo "✗ $missing assets still missing after two minutes. Do not open the site until they appear." >&2
+  exit 1
+fi
+for f in $ASSETS; do curl -s -o /dev/null -H 'Accept-Encoding: gzip, deflate, br' "$ORIGIN/$f"; done
+echo "✓ All $COUNT assets are served and warm. Verify at $ORIGIN"

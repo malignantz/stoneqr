@@ -488,8 +488,17 @@ controls that claim radio semantics.
   Generator sets `data-hydrated`, and the Generator reads the saved mode synchronously so its
   first client render is Advanced. Svelte 5 recovers from an `{#if}` that differs from the
   server by rendering that branch afresh, without a warning. The script's sha256 is in the CSP
-  in `svelte.config.js`; a zero-length CSS animation releases the hold after 2.5 s if the
-  JavaScript never arrives. Basic visitors see no change at all.
+  in `svelte.config.js`; the same script lifts the hold after three seconds regardless, so a
+  failed or slow hydration shows the Basic tool rather than nothing. (A CSS animation was tried
+  first for that release and dropped: a hidden tab never advances it.) Basic visitors see no
+  change at all.
+- **Found while verifying the above on the live site:** Cloudflare Pages had no `404.html`, so a
+  request for a hashed asset that had not yet replicated after a deploy came back as
+  `index.html` with a 200, our `_headers` rule stamped it with a one-year immutable cache
+  header, and the edge and the first browser to ask kept a broken page. The site now prerenders
+  `/404` so a missing path is a real 404, and `deploy.sh` polls every hashed asset (with a
+  throwaway query string, so the polling can never poison the canonical cache key) until all of
+  them are served, then warms them, before it says the deploy is done.
 
 Cost: no new chunks; the generator page's eager JavaScript moved by well under a kilobyte.
 
