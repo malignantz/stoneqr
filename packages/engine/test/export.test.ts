@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { unzlibSync } from 'fflate';
-import { PDFDocument } from 'pdf-lib';
+import { PDFArray, PDFDocument, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import { encode } from '../src/encode.js';
 import { rasterize } from '../src/raster.js';
 import { matrixToPath } from '../src/render/svg.js';
@@ -49,6 +49,82 @@ function decodePng(png: Uint8Array): RasterImage {
 		data.set(raw.subarray(y * (stride + 1) + 1, y * (stride + 1) + 1 + stride), y * stride);
 	}
 	return { width, height, data };
+}
+
+/** Concatenate a page's content streams into PostScript-ish text. */
+async function pageContent(bytes: Uint8Array): Promise<string> {
+	const doc = await PDFDocument.load(bytes, { updateMetadata: false });
+	const page = doc.getPage(0);
+	const contents = page.node.Contents();
+	const parts = contents instanceof PDFArray ? contents.asArray() : [contents];
+	let text = '';
+	for (const part of parts) {
+		const stream = doc.context.lookup(part);
+		expect(stream).toBeInstanceOf(PDFRawStream);
+		text += new TextDecoder().decode(decodePDFRawStream(stream as PDFRawStream).decode());
+	}
+	return text;
+}
+
+interface PdfRect {
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+	dark: boolean;
+	/** 'k' for CMYK, 'rg' for RGB: the print shop cares which one the ink came from. */
+	space: 'k' | 'rg';
+}
+
+/**
+ * pdf-lib draws a rectangle as a translated path (`cm` then `m`/`l`/`h`/`f`), not a `re`.
+ * Read each q...Q block back into a plain rectangle in page points, with its fill.
+ */
+function pdfRects(content: string): PdfRect[] {
+	const out: PdfRect[] = [];
+	for (const [, block] of content.matchAll(/^q$([\s\S]*?)^Q$/gm)) {
+		const cmyk = block!.match(/^([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) k$/m);
+		const rgbFill = block!.match(/^([\d.]+) ([\d.]+) ([\d.]+) rg$/m);
+		if (!cmyk && !rgbFill) continue;
+		if (!/^f$/m.test(block!)) continue;
+		let x = 0;
+		let y = 0;
+		for (const [, tx, ty] of block!.matchAll(/^1 0 0 1 ([\d.-]+) ([\d.-]+) cm$/gm)) {
+			x += Number(tx);
+			y += Number(ty);
+		}
+		const points = [...block!.matchAll(/^([\d.-]+) ([\d.-]+) [ml]$/gm)].map(([, px, py]) => [Number(px), Number(py)]);
+		const w = Math.max(...points.map((p) => p[0]!));
+		const h = Math.max(...points.map((p) => p[1]!));
+		const dark = cmyk
+			? Number(cmyk[4]) > 0.5
+			: Number(rgbFill![1]) < 0.5 && Number(rgbFill![2]) < 0.5 && Number(rgbFill![3]) < 0.5;
+		out.push({ x, y, w, h, dark, space: cmyk ? 'k' : 'rg' });
+	}
+	return out;
+}
+
+/** Paint the parsed rectangles into a raster, flipping the PDF's bottom-left origin. */
+function rasterizeRects(rects: PdfRect[], sidePt: number, pxPerPt: number): RasterImage {
+	const side = Math.round(sidePt * pxPerPt);
+	const data = new Uint8Array(side * side * 4).fill(255);
+	const to = (pt: number) => Math.round(pt * pxPerPt);
+	for (const rect of rects) {
+		const x0 = Math.max(0, to(rect.x));
+		const x1 = Math.min(side, to(rect.x + rect.w));
+		// PDF y is measured up from the bottom; the raster's y runs down.
+		const y0 = Math.max(0, side - to(rect.y + rect.h));
+		const y1 = Math.min(side, side - to(rect.y));
+		const v = rect.dark ? 0 : 255;
+		for (let y = y0; y < y1; y++)
+			for (let x = x0; x < x1; x++) {
+				const i = (y * side + x) * 4;
+				data[i] = v;
+				data[i + 1] = v;
+				data[i + 2] = v;
+			}
+	}
+	return { width: side, height: side, data };
 }
 
 describe('pHYs', () => {
@@ -225,10 +301,45 @@ describe('exportPdf', () => {
 		expect(doc.getCreator()).toBe('stoneqr.app');
 	});
 
-	it('accepts transparent backgrounds and RGB colours', async () => {
-		const qr = encode('colour');
-		const bytes = await exportPdf(qr, { widthMm: 25, bg: 'transparent', fg: '#123456', cmyk: true });
-		expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
+	it('places the modules so the page still decodes, in 100% K ink', async () => {
+		const qr = encode(PAYLOAD);
+		const widthMm = 30;
+		const marginMm = 5;
+		const bytes = await exportPdf(qr, { widthMm, marginMm });
+		const rects = pdfRects(await pageContent(bytes));
+
+		// One background plus one per merged dark run, same as the EPS.
+		const runs = (matrixToPath(qr.matrix).match(/M/g) ?? []).length;
+		expect(rects.length).toBe(runs + 1);
+		// Every drop of ink is CMYK 100% K; only the untouched paper is RGB white.
+		expect(rects.filter((r) => r.dark).every((r) => r.space === 'k')).toBe(true);
+		expect(rects.filter((r) => r.space !== 'k')).toEqual([
+			expect.objectContaining({ dark: false, x: 0, y: 0 })
+		]);
+
+		const sidePt = ((widthMm + 2 * marginMm) * 72) / 25.4;
+		const pxPerPt = ((qr.size + 8) * 8) / ((widthMm * 72) / 25.4);
+		expect(verifyRaster(rasterizeRects(rects, sidePt, pxPerPt), PAYLOAD)).toEqual({
+			ok: true,
+			decoded: PAYLOAD
+		});
+	});
+
+	it('decodes with a transparent background and RGB ink', async () => {
+		const payload = 'https://stoneqr.app/wifi';
+		const widthMm = 25;
+		const qr = encode(payload);
+		const bytes = await exportPdf(qr, { widthMm, marginMm: 4, bg: 'transparent', fg: '#123456', cmyk: true });
+		const rects = pdfRects(await pageContent(bytes));
+
+		// No paper rectangle at all, and #123456 is too light for the CMYK black shortcut.
+		const runs = (matrixToPath(qr.matrix).match(/M/g) ?? []).length;
+		expect(rects.length).toBe(runs);
+		expect(rects.every((r) => r.space === 'rg' && r.dark)).toBe(true);
+
+		const sidePt = ((widthMm + 8) * 72) / 25.4;
+		const pxPerPt = ((qr.size + 8) * 8) / ((widthMm * 72) / 25.4);
+		expect(verifyRaster(rasterizeRects(rects, sidePt, pxPerPt), payload).ok).toBe(true);
 	});
 });
 

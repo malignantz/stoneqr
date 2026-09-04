@@ -1,0 +1,9 @@
+{
+  // The tests read and write golden files, so they need Node's types. The main tsconfig
+  // deliberately has none: nothing under src/ may depend on Node or on the DOM outside render/.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "test"]
+}

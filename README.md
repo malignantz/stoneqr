@@ -20,7 +20,7 @@ plan.md           scope, architecture, milestones
 ```bash
 bun install
 bun run dev        # site at http://localhost:5173
-bun run test       # engine unit tests (vitest)
+bun run test       # unit tests (vitest): engine, then the site's pure modules
 bun run check      # svelte-check
 bun run build      # static output in apps/site/build
 ./deploy.sh        # build + wrangler pages deploy
