@@ -22,7 +22,7 @@ Compiled by a research agent. [unverified] items should be spot-checked before t
 | awesome-qr | 2.1.5-rc / 2022 | - | needs canvas | No | background + dotScale | Yes | - | No | Stale; approximates halftone. |
 | qrbtf | 2022, GPL-3 | - | React | Yes | artistic styles | - | - | No | GPL, stale. |
 
-Halftone/artistic in JS: no maintained npm lib. Implement on the raw matrix (~150 lines) using any Worker-safe encoder exposing the matrix.
+Halftone/artistic in JS: no maintained npm lib. Techniques compared, libraries evaluated, and the QArt option written up in `artistic-qr.md`. Implement on the raw matrix (~150 lines) using any Worker-safe encoder exposing the matrix.
 
 Recommendation: uqr or @paulmillr/qr as the core encoder (browser + Worker); @liquid-js/qr-code-styling browser-only for styled shapes; bwip-js (tree-shaken) only if Micro QR/rMQR is offered.
 
