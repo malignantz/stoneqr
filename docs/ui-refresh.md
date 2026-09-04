@@ -1,6 +1,6 @@
 # UI refresh: cleaner, calmer, more obvious
 
-Status: planned 2026-09-04. Phases 0 to 3 built 2026-09-04; phases 4 and 5 open. Milestone M10 in `plan.md`. This is the design
+Status: planned 2026-09-04, built 2026-09-04 (phases 0 to 5). Milestone M10 in `plan.md`. What is left is on real hardware, not in the code: see §10. This is the design
 contract for the refresh; the rules in `CLAUDE.md` (Basic/Advanced split, `advancedInUse`, the
 hero row, "Photo QR" naming, the bundle budget, the decode check) all stay in force.
 
@@ -415,6 +415,34 @@ Cost: 92.6 KB to 92.7 KB gzipped, against the 150 KB budget.
 - Print stylesheet: hide the toggle and the preview bar as well as the header and footer.
 
 ---
+
+### 8b. What phases 4 and 5 settled
+
+Built 2026-09-04.
+
+- **Photo QR became sliders and tiles.** Crop and Look are `Slider` rows with reset dots, the
+  tone is three drawn tiles of the same scene (`ToneArt`) rather than three words, and the seven
+  built-in shapes wear the `.swatch` tile without captions — seven captions do not fit a 22 rem
+  column, and the shapes say what they are. They stayed plain buttons rather than a `Swatches`
+  group because loading a shape is an action, not a selection, and forcing radio semantics onto
+  it would have been a lie.
+- **A slider can have no readout.** Basic hides the Cut percentage, which left the reset dot
+  announcing "Reset Cut to ". `Slider` now drops the value from its label when `format` returns
+  nothing.
+- **The bulk CSV picker became a drop tile**, which meant its handler had to take a `File` rather
+  than a change event. Verified end to end: a synthesised CSV parses to "3 rows · 2 columns" and
+  generates two codes.
+- **Global polish went into `@layer base`**, so one focus ring and one disabled treatment cover
+  every control, including the ones no component had thought about. Notices gained an icon
+  column, `.prose-table` shares the prose table rules with the bulk preview, and control heights
+  are 2.5 rem and 2 rem — 43 px and 34 px at this site's 17 px root, not the 40/32 the sketch
+  assumed.
+- **Two more lg-band clips**, found the same way as Phase 3's: the paired colour fields cut the
+  last character off "#000000" at 306 px, and the longest swatch caption overran its tile by a
+  pixel. The colour pair stacks in that band; the caption's letter-spacing came in.
+
+Cost: 92.7 KB to 93.7 KB gzipped, against the 150 KB budget. Across all six phases: 85.4 KB to
+93.7 KB, an 8.3 KB increase for the whole refresh.
 
 ## 9. Out of scope for this refresh
 

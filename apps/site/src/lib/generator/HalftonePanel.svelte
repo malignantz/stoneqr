@@ -1,20 +1,31 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { IMAGE_ZOOM_MAX, IMAGE_ZOOM_MIN, IMAGE_OFFSET_MAX, THRESHOLD_MAX, THRESHOLD_MIN } from '@stoneqr/engine';
+	import {
+		IMAGE_ZOOM_MAX,
+		IMAGE_ZOOM_MIN,
+		IMAGE_OFFSET_MAX,
+		THRESHOLD_DEFAULT,
+		THRESHOLD_MAX,
+		THRESHOLD_MIN
+	} from '@stoneqr/engine';
 	import { GLYPHS, glyphDataUrl, glyphName, glyphSvg, type Glyph } from '$lib/glyphs';
+	import DropTile from '$lib/components/DropTile.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import Slider from '$lib/components/Slider.svelte';
+	import Swatches from '$lib/components/Swatches.svelte';
+	import ToneArt from '$lib/components/ToneArt.svelte';
 	import type { Design, HalftoneTone } from './state.svelte';
 
-	const TONES: { value: HalftoneTone; label: string }[] = [
-		{ value: 'colour', label: 'Colour' },
-		{ value: 'grey', label: 'Black and white' },
-		{ value: 'silhouette', label: 'Silhouette' }
+	const TONES: { id: HalftoneTone; label: string }[] = [
+		{ id: 'colour', label: 'Colour' },
+		{ id: 'grey', label: 'Black and white' },
+		{ id: 'silhouette', label: 'Silhouette' }
 	];
 
 	let { design, open = false, advanced = false }: { design: Design; open?: boolean; advanced?: boolean } = $props();
 
 	/**
-	 * The panel's own open state, for the reason spelled out in StylePanel: an attribute bound
+	 * The panel's own open state, for the reason spelled out in SectionHeader: an attribute bound
 	 * straight to the prop is reasserted by the block's shared attribute effect, which both closed
 	 * the panel mid-edit and, once a picture was in, made it impossible to fold away. The prop can
 	 * still open the panel — /photo, or a picture arriving — but never closes it.
@@ -27,17 +38,14 @@
 	/** What the panel says about itself when folded, so nothing is hidden by folding. */
 	const summary = $derived.by(() => {
 		if (!design.halftoneImage) return '';
-		const tone = TONES.find((t) => t.value === design.halftoneTone)?.label ?? '';
+		const tone = TONES.find((t) => t.id === design.halftoneTone)?.label ?? '';
 		return [design.halftoneImageName, design.halftone ? tone : 'off'].filter(Boolean).join(' · ');
 	});
 
 	let imageError = $state('');
 	const cropChanged = $derived(design.halftoneZoom !== 1 || design.halftoneOffsetX !== 0 || design.halftoneOffsetY !== 0);
 
-	async function onImage(e: Event) {
-		const input = e.currentTarget as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
+	async function onImage(file: File) {
 		imageError = '';
 		if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
 			imageError = 'Use a PNG, JPEG, or WebP.';
@@ -60,7 +68,6 @@
 		} catch (err) {
 			imageError = err instanceof Error ? err.message : String(err);
 		}
-		input.value = '';
 	}
 
 	/** A built-in shape is a silhouette by definition, so picking one switches the tone as well. */
@@ -86,72 +93,65 @@
 		design.halftoneRaster = null;
 		design.halftoneOpts = null;
 		design.halftoneNote = '';
+		imageError = '';
 		resetCrop();
 	}
+
+	const pct = (v: number) => `${Math.round(v * 100)}%`;
 </script>
 
 <SectionHeader title="Photo QR" collapsible bind:open={panelOpen} {summary} controls="photo-body" />
 
 {#if panelOpen}
 	<div id="photo-body" class="mt-4 grid gap-5">
-		<div class="field">
-			<span class="label">Picture</span>
+		<div class="grid gap-3">
+			<p class="subhead">Picture</p>
+			<DropTile
+				src={design.halftoneImage ?? ''}
+				name={design.halftoneImageName}
+				label="Drop a picture here, or choose a file"
+				hint="Blend a photo or a logo into the code itself. It stays in your browser."
+				error={imageError}
+				ariaLabel="Upload a photo to blend into the code"
+				onfile={onImage}
+				onclear={clearImage}
+			/>
 			{#if design.halftoneImage}
-				<div class="flex items-center gap-3">
-					<img src={design.halftoneImage} alt="" class="h-12 w-12 rounded border border-rule bg-white object-cover" />
-					<div class="min-w-0 flex-1 text-sm">
-						<p class="truncate">{design.halftoneImageName}</p>
-						<button type="button" class="text-ink-3 underline" onclick={clearImage}>Remove</button>
-					</div>
-				</div>
-				<label class="mt-2 flex items-center gap-2 text-sm">
-					<input type="checkbox" bind:checked={design.halftone} /> Blend the picture into the code
+				<label class="toggle">
+					<input type="checkbox" bind:checked={design.halftone} />
+					Blend the picture into the code
 				</label>
 			{:else}
-				<input
-					type="file"
-					accept="image/png,image/jpeg,image/webp"
-					class="block w-full text-sm file:mr-3 file:rounded file:border file:border-rule-2 file:bg-white file:px-3 file:py-1.5 file:text-sm"
-					onchange={onImage}
-					aria-label="Upload a photo to blend into the code"
-				/>
-				<p class="hint">Blend a photo or a logo into the code itself. PNG, JPEG, or WebP; the picture stays in your browser.</p>
-				<span class="label mt-3">Or start from a shape</span>
-				<div class="flex flex-wrap gap-2" role="group" aria-label="Built-in shapes">
-					{#each GLYPHS as g (g.id)}
-						<button
-							type="button"
-							class="glyph"
-							title={g.label}
-							aria-label={`Use the ${g.label} shape`}
-							onclick={() => useGlyph(g)}
-						>
-							{@html glyphSvg(g, 40)}
-						</button>
-					{/each}
+				<!--
+				  An action, not a choice: each shape loads itself as the picture. They wear the same
+				  tile as the style swatches, without captions, because seven captions will not fit a
+				  22 rem column and the shapes say what they are.
+				-->
+				<div class="field">
+					<span class="label">Or start from a shape</span>
+					<div class="grid grid-cols-7 gap-1.5">
+						{#each GLYPHS as g (g.id)}
+							<button
+								type="button"
+								class="swatch"
+								title={g.label}
+								aria-label={`Use the ${g.label} shape`}
+								onclick={() => useGlyph(g)}
+							>
+								<span class="swatch-art">{@html glyphSvg(g, 40)}</span>
+							</button>
+						{/each}
+					</div>
 				</div>
 			{/if}
-			{#if imageError}<p class="notice notice-block">{imageError}</p>{/if}
 		</div>
 
 		{#if design.halftoneActive}
-			<div class="field">
-				<span class="label">Crop</span>
-				<label class="flex items-center gap-3 text-sm">
-					Zoom
-					<input type="range" min={IMAGE_ZOOM_MIN} max={IMAGE_ZOOM_MAX} step="0.05" bind:value={design.halftoneZoom} aria-label="Picture zoom" />
-					<span class="num w-14">{design.halftoneZoom.toFixed(2)}×</span>
-				</label>
-				<label class="flex items-center gap-3 text-sm">
-					Across
-					<input type="range" min={-IMAGE_OFFSET_MAX} max={IMAGE_OFFSET_MAX} step="0.01" bind:value={design.halftoneOffsetX} aria-label="Move the picture left or right" />
-					<span class="num w-14">{Math.round(design.halftoneOffsetX * 100)}%</span>
-				</label>
-				<label class="flex items-center gap-3 text-sm">
-					Down
-					<input type="range" min={-IMAGE_OFFSET_MAX} max={IMAGE_OFFSET_MAX} step="0.01" bind:value={design.halftoneOffsetY} aria-label="Move the picture up or down" />
-					<span class="num w-14">{Math.round(design.halftoneOffsetY * 100)}%</span>
-				</label>
+			<div class="grid gap-3">
+				<p class="subhead">Crop</p>
+				<Slider label="Zoom" bind:value={design.halftoneZoom} min={IMAGE_ZOOM_MIN} max={IMAGE_ZOOM_MAX} step={0.05} reset={1} format={(v) => `${v.toFixed(2)}×`} />
+				<Slider label="Across" bind:value={design.halftoneOffsetX} min={-IMAGE_OFFSET_MAX} max={IMAGE_OFFSET_MAX} step={0.01} reset={0} format={pct} />
+				<Slider label="Down" bind:value={design.halftoneOffsetY} min={-IMAGE_OFFSET_MAX} max={IMAGE_OFFSET_MAX} step={0.01} reset={0} format={pct} />
 				<p class="hint">
 					At 1× the picture fills the code and a non-square picture is cropped to the middle. Zoom in to enlarge one
 					part, move it with the sliders, or zoom out to leave paper around it.
@@ -159,45 +159,34 @@
 				</p>
 			</div>
 
-			<div class="field">
-				<span class="label">Look</span>
-				{#if advanced}
-				<label class="flex items-center gap-3 text-sm">
-					Dot size
-					<input type="range" min="0.25" max="0.7" step="0.05" bind:value={design.halftoneDotScale} aria-label="Dot size" />
-					<span class="num w-14">{Math.round(design.halftoneDotScale * 100)}%</span>
-				</label>
-				<label class="flex items-center gap-3 text-sm">
-					Fade picture
-					<input type="range" min="0" max="0.6" step="0.05" bind:value={design.halftoneDim} aria-label="Fade the picture" />
-					<span class="num w-14">{Math.round(design.halftoneDim * 100)}%</span>
-				</label>
-				<label class="flex items-center gap-3 text-sm">
-					Contrast
-					<input type="range" min="0.6" max="1.6" step="0.05" bind:value={design.halftoneContrast} aria-label="Picture contrast" />
-					<span class="num w-14">{design.halftoneContrast.toFixed(2)}×</span>
-				</label>
-				{/if}
-				<div class="flex flex-wrap items-center gap-3 text-sm">
-					<span>Show as</span>
-					<div class="seg" role="group" aria-label="Picture tone">
-						{#each TONES as t (t.value)}
-							<button type="button" aria-pressed={design.halftoneTone === t.value} onclick={() => (design.halftoneTone = t.value)}>{t.label}</button>
-						{/each}
-					</div>
-				</div>
+			<div class="grid gap-3">
+				<p class="subhead">Look</p>
+				<Swatches label="Show as" options={TONES} bind:value={design.halftoneTone} columns={3} ariaLabel="Picture tone">
+					{#snippet draw(id)}<ToneArt tone={id} />{/snippet}
+				</Swatches>
+
 				{#if design.halftoneSilhouette}
-					<label class="flex items-center gap-3 text-sm">
-						Cut
-						<span class="text-ink-3">Paper</span>
-						<input type="range" min={THRESHOLD_MIN} max={THRESHOLD_MAX} step="0.01" bind:value={design.halftoneThreshold} aria-label="Where the silhouette cuts between paper and ink" />
-						<span class="text-ink-3">Ink</span>
-						{#if advanced}<span class="num w-14">{Math.round(design.halftoneThreshold * 100)}%</span>{/if}
-					</label>
+					<Slider
+						label="Cut"
+						bind:value={design.halftoneThreshold}
+						min={THRESHOLD_MIN}
+						max={THRESHOLD_MAX}
+						step={0.01}
+						reset={THRESHOLD_DEFAULT}
+						startLabel="Paper"
+						endLabel="Ink"
+						format={advanced ? pct : () => ''}
+					/>
 					<p class="hint">
 						A silhouette turns the picture into solid blocks of ink and paper: right for a logo or a shape, wrong for a
 						photo. Drag toward Ink if parts of the shape are missing, toward Paper if the background fills in.
 					</p>
+				{/if}
+
+				{#if advanced}
+					<Slider label="Dot size" bind:value={design.halftoneDotScale} min={0.25} max={0.7} step={0.05} reset={0.4} format={pct} />
+					<Slider label="Fade" bind:value={design.halftoneDim} min={0} max={0.6} step={0.05} reset={0} format={pct} />
+					<Slider label="Contrast" bind:value={design.halftoneContrast} min={0.6} max={1.6} step={0.05} reset={1} format={(v) => `${v.toFixed(2)}×`} />
 				{/if}
 			</div>
 
@@ -213,9 +202,9 @@
 		{/if}
 
 		<p class="hint">
-			Error correction is forced to H and the code is enlarged to at least version 7 so the picture shows through. Every change
-			is decoded on your device before download unlocks.
+			Error correction is forced to H and the code is enlarged to at least version 7 so the picture shows through. Every
+			change is decoded on your device before download unlocks, and picture codes download as PNG or SVG.
+			{#if !advanced}Advanced adds dot size, fade, and contrast for a photo that is hard to read in print.{/if}
 		</p>
-		<p class="hint">Picture codes download as PNG or SVG. {advanced ? 'Bigger dots and a faded picture scan more reliably in print.' : 'If a photo is hard to read in print, Advanced has dot size, fade, and contrast.'}</p>
 	</div>
 {/if}

@@ -100,6 +100,23 @@ a:hover {
 }
 }
 
+@layer base {
+/*
+ * One focus ring for the whole site. Components used to declare their own, so a control that
+ * nobody had thought about (a link, a plain checkbox, a file input) fell back to the browser's.
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
+	border-radius: 3px;
+}
+/* Anything the browser has switched off looks switched off, in one place. */
+:where(button, input, select, textarea, fieldset):disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+}
+
 @layer components {
 /* Ticket labels: small mono caps used above controls and figures. */
 .ticket {
@@ -192,7 +209,8 @@ a:hover {
 	background: var(--color-ink);
 	color: var(--color-paper);
 	border-radius: 4px;
-	padding: 0.6rem 1rem;
+	padding: 0.5rem 1rem;
+	min-height: 2.5rem;
 	font-weight: 500;
 	font-size: 0.95rem;
 	text-decoration: none;
@@ -230,6 +248,7 @@ a:hover {
 	border-color: var(--color-accent-ink);
 }
 .btn-stack {
+	min-height: 2.9rem;
 	flex-direction: column;
 	gap: 0;
 	padding-top: 0.42rem;
@@ -241,7 +260,8 @@ a:hover {
 	letter-spacing: 0.1em;
 }
 .btn-sm {
-	padding: 0.4rem 0.7rem;
+	padding: 0.3rem 0.7rem;
+	min-height: 2rem;
 	font-size: 0.85rem;
 }
 
@@ -447,7 +467,8 @@ a:hover {
 .swatch-name {
 	font-family: var(--font-mono);
 	font-size: 0.58rem;
-	letter-spacing: 0.04em;
+	/* Tight enough that the longest caption ("Rounded") fits a 46 px tile in the lg band. */
+	letter-spacing: 0.01em;
 	text-transform: uppercase;
 	color: var(--color-ink-3);
 	line-height: 1.1;
@@ -915,10 +936,31 @@ a:hover {
 
 /* Notices */
 .notice {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 0.5rem;
 	border-left: 3px solid var(--color-rule-2);
 	padding: 0.5rem 0.8rem;
 	font-size: 0.9rem;
 	background: color-mix(in oklab, white 40%, transparent);
+}
+/* With an icon in front, the text keeps its own column rather than wrapping under the icon. */
+.notice:has(> svg) {
+	grid-template-columns: auto minmax(0, 1fr);
+	align-items: start;
+}
+.notice > svg {
+	margin-top: 0.15rem;
+	color: var(--color-ink-3);
+}
+.notice-warn > svg {
+	color: var(--color-warn);
+}
+.notice-block > svg {
+	color: var(--color-block);
+}
+.notice-info > svg {
+	color: var(--color-accent);
 }
 .notice-warn {
 	border-color: var(--color-warn);
@@ -963,11 +1005,22 @@ a:hover {
 	padding: 0.1em 0.35em;
 	border-radius: 3px;
 }
-.prose table {
+.prose table,
+.prose-table {
 	width: 100%;
 	border-collapse: collapse;
 	font-size: 0.92rem;
 }
+.prose-table tbody tr,
+.prose tbody tr {
+	transition: background 120ms;
+}
+.prose-table tbody tr:hover,
+.prose tbody tr:hover {
+	background: color-mix(in oklab, var(--color-paper-2) 60%, transparent);
+}
+.prose-table th,
+.prose-table td,
 .prose th,
 .prose td {
 	text-align: left;
@@ -975,6 +1028,7 @@ a:hover {
 	border-bottom: 1px solid var(--color-rule);
 	vertical-align: top;
 }
+.prose-table th,
 .prose th {
 	font-family: var(--font-mono);
 	font-size: 0.68rem;
@@ -1036,7 +1090,8 @@ a:hover {
 	header,
 	footer,
 	nav,
-	.preview-bar {
+	.preview-bar,
+	.seg[aria-label='Control set'] {
 		display: none !important;
 	}
 }

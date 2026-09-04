@@ -1,5 +1,8 @@
 <script lang="ts">
 	import Seo from '$lib/components/Seo.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import Slider from '$lib/components/Slider.svelte';
 	import {
 		encode,
 		moduleMm,
@@ -96,16 +99,26 @@
 			<div class="field">
 				<label for="distance">Scan distance (metres)</label>
 				<input id="distance" class="input num" type="number" min="0.1" step="0.1" bind:value={distance} />
+				<Slider
+					label="Drag"
+					bind:value={distance}
+					min={0.1}
+					max={10}
+					step={0.1}
+					reset={0.3}
+					startLabel="In hand"
+					endLabel="Across a room"
+					format={(v) => `${v.toFixed(1)} m`}
+				/>
 				<p class="hint">Arm's length is about 0.3 m. A poster across a room is 2 to 3 m.</p>
 			</div>
 		</section>
 
 		<section class="grid content-start gap-6">
 			<div class="sheet p-5 sm:p-6">
-				<div class="flex items-center justify-between gap-3">
-					<p class="ticket">Result</p>
-					<span class="badge {badgeClass}">{status.replace('-', ' ')}</span>
-				</div>
+				<SectionHeader title="Result" level={3}>
+					{#snippet badge()}<span class="badge badge-fixed {badgeClass}">{status.replace('-', ' ')}</span>{/snippet}
+				</SectionHeader>
 				<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
 					<div><dt class="ticket">Version</dt><dd class="num text-2xl">{qr ? qr.version : '–'}</dd></div>
 					<div><dt class="ticket">Modules</dt><dd class="num text-2xl">{size}<span class="text-base text-ink-3">+8</span></dd></div>
@@ -114,7 +127,10 @@
 				</dl>
 				<ul class="mt-5 grid gap-2">
 					{#each warnings as w (w.code + w.level)}
-						<li class="notice notice-{w.level}">{w.message}</li>
+						<li class="notice notice-{w.level}">
+							<Icon name={w.level === 'info' ? 'tick' : 'warning'} size={15} />
+							<span>{w.message}</span>
+						</li>
 					{/each}
 				</ul>
 				<p class="mt-5 text-sm text-ink-2">
@@ -125,7 +141,7 @@
 			</div>
 
 			<div class="sheet p-5 sm:p-6">
-				<p class="ticket">What error correction costs</p>
+				<SectionHeader title="What error correction costs" level={3} />
 				<table class="mt-3 w-full text-sm">
 					<thead>
 						<tr class="ticket text-left"><th class="py-1 font-medium">ECC</th><th class="py-1 font-medium">Version</th><th class="py-1 font-medium">Modules</th><th class="py-1 font-medium">Min width @0.5 mm</th></tr>

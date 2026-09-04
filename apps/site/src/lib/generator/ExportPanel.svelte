@@ -3,6 +3,7 @@
 	import { downloadText, downloadBytes, copyPngToClipboard, slug } from '$lib/download';
 	import { svgToCanvas, canvasToPngBlob } from '$lib/svg-raster';
 	import { SITE } from '$lib/site';
+	import Icon from '$lib/components/Icon.svelte';
 	import PreviewBar from '$lib/components/PreviewBar.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { describe, type Design } from './state.svelte';
@@ -317,7 +318,10 @@
 			{#if visibleWarnings.length}
 				<ul class="grid gap-2">
 					{#each visibleWarnings as w (w.code + w.level + w.message)}
-						<li class="notice notice-{w.level}">{w.message}</li>
+						<li class="notice notice-{w.level}">
+							<Icon name={w.level === 'info' ? 'tick' : 'warning'} size={15} />
+							<span>{w.message}</span>
+						</li>
 					{/each}
 				</ul>
 			{/if}

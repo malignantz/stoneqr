@@ -3,6 +3,7 @@
 	import { renderStyled } from '$lib/styled';
 	import { svgToCanvas, canvasImageData } from '$lib/svg-raster';
 	import { SITE } from '$lib/site';
+	import Icon from '$lib/components/Icon.svelte';
 	import { describe, type Design } from './state.svelte';
 
 	let { design, advanced = false }: { design: Design; advanced?: boolean } = $props();
@@ -295,7 +296,10 @@
 	</div>
 
 	{#if design.verify === 'fail' && design.verifyDetail}
-		<p class="notice notice-block" role="alert">{design.verifyDetail}</p>
+		<p class="notice notice-block" role="alert">
+			<Icon name="warning" size={15} />
+			<span>{design.verifyDetail}</span>
+		</p>
 	{/if}
 
 	{#if design.encoded}

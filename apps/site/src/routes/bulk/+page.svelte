@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import Seo from '$lib/components/Seo.svelte';
+	import DropTile from '$lib/components/DropTile.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { MODULE_MM_WARN, moduleMm, type Ecc } from '@stoneqr/engine';
 	import type { LabelItem } from '@stoneqr/engine/labels';
 	import { downloadBytes } from '$lib/download';
@@ -53,10 +56,8 @@
 	);
 	const choices = $derived(table ? columnChoices(table, hasHeader) : []);
 
-	async function onCsv(event: Event) {
-		const input = event.currentTarget as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
+	/** Takes the file itself: the drop tile hands one over from a drop as well as a click. */
+	async function onCsvFile(file: File) {
 		csvError = '';
 		try {
 			const read = await parseCsvFile(file);
@@ -70,7 +71,6 @@
 			table = null;
 			csvError = e instanceof Error ? e.message : String(e);
 		}
-		input.value = '';
 	}
 
 	/* ----------------------------------------------------------------- options */
@@ -300,8 +300,8 @@
 	<div class="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-8">
 		<!-- ------------------------------------------------------------- input -->
 		<section class="sheet grid gap-5 p-5 sm:p-6" aria-labelledby="input-heading">
-			<div class="flex flex-wrap items-center justify-between gap-3">
-				<h2 id="input-heading" class="text-xl">The list</h2>
+			<SectionHeader title="The list" id="input-heading">
+				{#snippet badge()}
 				<div class="seg" role="group" aria-label="Where the list comes from">
 					<button type="button" aria-pressed={source === 'paste'} onclick={() => (source = 'paste')}>
 						Paste
@@ -310,7 +310,8 @@
 						CSV file
 					</button>
 				</div>
-			</div>
+				{/snippet}
+			</SectionHeader>
 
 			{#if source === 'paste'}
 				<div class="field">
@@ -329,8 +330,15 @@
 				</div>
 			{:else}
 				<div class="field">
-					<label for="csv">CSV or TSV file</label>
-					<input id="csv" class="input" type="file" accept=".csv,.tsv,.txt,text/csv" onchange={onCsv} />
+					<span class="label">CSV or TSV file</span>
+					<DropTile
+						accept=".csv,.tsv,.txt,text/csv"
+						label="Drop a CSV here, or choose a file"
+						hint="It is parsed in your browser. Nothing is uploaded."
+						error={csvError}
+						ariaLabel="Choose a CSV or TSV file"
+						onfile={onCsvFile}
+					/>
 					{#if table}
 						<p class="hint">
 							<span class="num">{table.name}</span> · {table.rows.length} rows · {table.columns}
@@ -338,9 +346,6 @@
 						</p>
 					{/if}
 				</div>
-				{#if csvError}
-					<p class="notice notice-block">{csvError}</p>
-				{/if}
 				{#if table}
 					<label class="flex items-center gap-2 text-sm">
 						<input type="checkbox" bind:checked={hasHeader} /> The first row is a header
@@ -379,12 +384,12 @@
 
 			{#if preview.length > 0}
 				<div class="overflow-x-auto">
-					<table class="w-full border-collapse text-sm">
+					<table class="prose-table w-full border-collapse text-sm">
 						<thead>
 							<tr>
-								<th class="ticket border-b border-rule px-2 py-1.5 text-left">#</th>
-								<th class="ticket border-b border-rule px-2 py-1.5 text-left">Label</th>
-								<th class="ticket border-b border-rule px-2 py-1.5 text-left">Encodes as</th>
+								<th>#</th>
+								<th>Label</th>
+								<th>Encodes as</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -408,7 +413,7 @@
 
 		<!-- ----------------------------------------------------------- options -->
 		<section class="sheet grid gap-5 p-5 sm:p-6" aria-labelledby="options-heading">
-			<h2 id="options-heading" class="text-xl">Encoding</h2>
+			<SectionHeader title="Encoding" id="options-heading" />
 
 			<div class="field">
 				<span class="label">Content type</span>
@@ -507,13 +512,16 @@
 
 	<!-- ------------------------------------------------------------- results -->
 	{#if items}
+		<!-- Bound outside the snippet: a snippet body does not inherit the {#if}'s narrowing. -->
+		{@const total = items.length}
 		<section class="sheet mt-6 grid gap-5 p-5 sm:p-6 lg:mt-8" aria-labelledby="results-heading">
-			<div class="flex flex-wrap items-center justify-between gap-3">
-				<h2 id="results-heading" class="text-xl">Download</h2>
-				<span class="badge {unverified.length + rejected.length === 0 ? 'badge-ok' : 'badge-warn'}">
-					{good.length} of {items.length} ready
-				</span>
-			</div>
+			<SectionHeader title="Download" id="results-heading">
+				{#snippet badge()}
+					<span class="badge {unverified.length + rejected.length === 0 ? 'badge-ok' : 'badge-warn'}">
+						{good.length} of {total} ready
+					</span>
+				{/snippet}
+			</SectionHeader>
 
 			<div class="grid gap-2">
 				<p class="text-ink-2">
@@ -527,25 +535,28 @@
 				</p>
 				{#if tooSmall}
 					<p class="notice notice-warn">
-						Modules under {MODULE_MM_WARN} mm are below the floor phones read reliably. Shorten the
-						content or print larger.
+						<Icon name="warning" size={15} />
+						<span>Modules under {MODULE_MM_WARN} mm are below the floor phones read reliably. Shorten the
+						content or print larger.</span>
 					</p>
 				{/if}
 				{#if unverified.length > 0}
 					<p class="notice notice-warn">
-						{unverified.length}
+						<Icon name="warning" size={15} />
+						<span>{unverified.length}
 						{unverified.length === 1 ? 'code' : 'codes'} did not decode on this device:
 						{unverified.length === 1 ? 'row' : 'rows'}
 						<span class="num">{rowNumbers(unverified)}</span>. They are still in the ZIP, marked
-						<code>false</code> in the manifest. Scan them by hand before printing.
+						<code>false</code> in the manifest. Scan them by hand before printing.</span>
 					</p>
 				{/if}
 				{#if rejected.length > 0}
 					<p class="notice notice-block">
-						{rejected.length}
+						<Icon name="warning" size={15} />
+						<span>{rejected.length}
 						{rejected.length === 1 ? 'row' : 'rows'} could not be encoded and produced no file:
 						{rejected.length === 1 ? 'row' : 'rows'}
-						<span class="num">{rowNumbers(rejected)}</span>. First reason: {rejected[0]?.error}
+						<span class="num">{rowNumbers(rejected)}</span>. First reason: {rejected[0]?.error}</span>
 					</p>
 				{/if}
 				{#if remasked > 0}

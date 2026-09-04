@@ -149,7 +149,9 @@
 						</span>
 					{/if}
 				</p>
-				<div class="grid grid-cols-2 gap-3">
+				<!-- Side by side except in the lg band, where the column is ~306 px and a "#000000"
+				     field loses its last character. -->
+				<div class="grid grid-cols-2 gap-3 lg:grid-cols-1 xl:grid-cols-2">
 					<ColourField label="Ink" bind:value={design.fg} {related} />
 					<ColourField label="Paper" bind:value={design.bg} disabled={design.transparentBg} {related} />
 				</div>

@@ -81,8 +81,8 @@
 		</div>
 	</div>
 	{#if !advanced && inUse.length}
-		<p class="notice notice-info mt-3 flex max-w-none items-start gap-2">
-			<Icon name="warning" size={15} class="mt-0.5 text-accent" />
+		<p class="notice notice-info mt-3 max-w-none">
+			<Icon name="warning" size={15} />
 			<span>
 				Advanced settings still apply: {inUse.join(', ')}.
 				<button type="button" class="underline" onclick={() => setMode(true)}>Switch to Advanced</button> to change them.

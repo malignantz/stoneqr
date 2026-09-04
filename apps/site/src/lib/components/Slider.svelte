@@ -63,11 +63,12 @@
 	</div>
 	<div class="row-readout">
 		{#if changed}
+			{@const shown = format(reset!)}
 			<button
 				type="button"
 				class="text-ink-3 hover:text-ink"
-				title="Back to the default ({format(reset!)})"
-				aria-label="Reset {label} to {format(reset!)}"
+				title={shown ? `Back to the default (${shown})` : 'Back to the default'}
+				aria-label={shown ? `Reset ${label} to ${shown}` : `Reset ${label}`}
 				onclick={() => (value = reset!)}
 			>
 				<Icon name="reset" size={13} />
