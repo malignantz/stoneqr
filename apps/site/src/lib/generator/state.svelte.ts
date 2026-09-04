@@ -139,6 +139,12 @@ export class Design {
 	halftoneOffsetY = $state(0);
 	/** The verified raster from the preview, reused by the export panel. */
 	halftoneRaster = $state<RasterImage | null>(null);
+	/**
+	 * Object URL of the rendered Photo QR preview. It lives on the design rather than inside the
+	 * Preview component because the pinned phone bar shows the same thumbnail; Preview still owns
+	 * creating and revoking it.
+	 */
+	halftonePreviewUrl = $state('');
 	/** The option set that actually decoded, so exports re-render with the same settings. */
 	halftoneOpts = $state<HalftoneOptions | null>(null);
 	/** Plain-language note when the fallback ladder had to change something. */

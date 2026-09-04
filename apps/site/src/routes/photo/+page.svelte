@@ -8,7 +8,7 @@
 <Generator preset="url" photoOpen={true}>
 	{#snippet hero()}
 	<h1 class="reveal">A picture inside the code, and it still scans.</h1>
-	<p class="reveal reveal-2 mt-2 max-w-2xl text-lg text-ink-2">Blend a photo, a logo, or one of the built-in shapes into the modules themselves. Error correction goes to H, and the download unlocks only after the code decodes on your device.</p>
+	<p class="reveal reveal-2 mt-2 max-w-2xl text-lg text-ink-2">Blend a photo, a logo, or one of the built-in shapes into the modules themselves. <span class="hidden sm:inline">Error correction goes to H, and the download unlocks only after the code decodes on your device.</span></p>
 	{/snippet}
 </Generator>
 

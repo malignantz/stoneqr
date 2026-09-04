@@ -5,13 +5,22 @@
 	import { SITE } from '$lib/site';
 	import { describe, type Design } from './state.svelte';
 
-	let { design }: { design: Design } = $props();
+	let { design, advanced = false }: { design: Design; advanced?: boolean } = $props();
+
+	/**
+	 * Advanced only: draw the code at the print width it will actually be, using CSS millimetres,
+	 * with a 10 mm bar to check it against a ruler. It is a preview affordance and nothing more —
+	 * exports and the decode check never see it.
+	 */
+	let actualSize = $state(false);
+	/** The artwork's real width: the code, plus the frame band when there is one. */
+	const artWidthMm = $derived(design.widthMm * (design.styled ? design.styledScale : 1));
+	const sizeStyle = $derived(actualSize ? `width: min(100%, ${artWidthMm}mm); height: auto` : '');
 
 	const svg = $derived(design.styled ? design.styledSvg : design.plainSvg);
 
 	// Artistic (halftone) rendering, plan §7. Takes precedence over plain and styled output.
 	// The picture is decoded once per data URL and never leaves the browser.
-	let halftoneUrl = $state('');
 	let halftoneError = $state('');
 	let halftoneBusy = $state(false);
 	let imageCache: { key: string; raster: RasterImage } | null = null;
@@ -72,8 +81,8 @@
 					URL.revokeObjectURL(url);
 					return;
 				}
-				if (halftoneUrl) URL.revokeObjectURL(halftoneUrl);
-				halftoneUrl = url;
+				if (design.halftonePreviewUrl) URL.revokeObjectURL(design.halftonePreviewUrl);
+				design.halftonePreviewUrl = url;
 			} catch (e) {
 				if (seq !== halftoneSeq) return;
 				halftoneError = e instanceof Error ? e.message : String(e);
@@ -89,13 +98,13 @@
 	// Drop the object URL when the picture goes away or the component unmounts.
 	$effect(() => {
 		if (design.halftoneActive) return;
-		if (halftoneUrl) {
-			URL.revokeObjectURL(halftoneUrl);
-			halftoneUrl = '';
+		if (design.halftonePreviewUrl) {
+			URL.revokeObjectURL(design.halftonePreviewUrl);
+			design.halftonePreviewUrl = '';
 		}
 	});
 	$effect(() => () => {
-		if (halftoneUrl) URL.revokeObjectURL(halftoneUrl);
+		if (design.halftonePreviewUrl) URL.revokeObjectURL(design.halftonePreviewUrl);
 	});
 
 	// Styled rendering: re-render when any style input changes (lazy chunk loads on first use).
@@ -204,26 +213,35 @@
 	  the decode badge live in a caption strip along the bottom, like the ticket on a print proof,
 	  so nothing sits above the code to push it out of line.
 	-->
-	<div class="sheet mx-auto w-full max-w-[min(100%,72vw)] overflow-hidden lg:max-w-none">
+	<div id="preview-card" class="sheet mx-auto w-full max-w-[min(100%,72vw)] overflow-hidden lg:max-w-none">
 		<div
 			class="relative grid aspect-square w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] place-items-center overflow-hidden p-4"
 			style="background: {design.transparentBg ? 'repeating-conic-gradient(#e6e1d6 0 25%, #f4f0e8 0 50%) 0 0 / 16px 16px' : design.bg}"
 			role="img"
 			aria-label="QR code preview encoding a {describe(design.type)}"
 		>
-			{#if design.halftoneActive && halftoneUrl}
+			{#if design.halftoneActive && design.halftonePreviewUrl}
 				<img
-					src={halftoneUrl}
+					src={design.halftonePreviewUrl}
 					alt=""
-					class="h-full w-full object-contain transition-opacity [image-rendering:pixelated]"
-					style="opacity: {halftoneBusy ? 0.5 : 1}"
+					class="object-contain transition-opacity [image-rendering:pixelated] {actualSize
+						? 'max-h-full max-w-full'
+						: 'h-full w-full'}"
+					style="opacity: {halftoneBusy ? 0.5 : 1}; {sizeStyle}"
 				/>
 			{:else if design.halftoneActive && halftoneError}
 				<p class="notice notice-block max-w-[18rem]">{halftoneError}</p>
 			{:else if design.halftoneActive && design.encoded}
 				<p class="text-ink-3">Blending the picture…</p>
 			{:else if svg}
-				<div class="qr-host h-full min-h-0 w-full min-w-0 [&>svg]:h-full [&>svg]:w-full">{@html svg}</div>
+				<div
+					class="qr-host min-h-0 min-w-0 [&>svg]:w-full {actualSize
+						? 'max-h-full max-w-full [&>svg]:h-auto'
+						: 'h-full w-full [&>svg]:h-full'}"
+					style={sizeStyle}
+				>
+					{@html svg}
+				</div>
 			{:else if design.isEmpty}
 				<div class="grid place-items-center text-center text-ink-3">
 					<svg width="120" height="120" viewBox="0 0 21 21" aria-hidden="true" class="opacity-25">
@@ -242,6 +260,20 @@
 		</div>
 		<div class="flex min-h-10 items-center justify-between gap-3 border-t border-rule px-4 py-2 whitespace-nowrap">
 			<h2 id="preview-heading" class="ticket">Preview</h2>
+			{#if advanced}
+				<label
+					class="toggle ml-auto text-xs"
+					title="Approximate: browsers work in 96 pixels to the inch, so how close this lands depends on your screen."
+				>
+					<input type="checkbox" bind:checked={actualSize} />
+					Actual size
+				</label>
+				{#if actualSize}
+					<span class="ticket flex items-center gap-1.5" aria-hidden="true">
+						<span class="scale-bar"></span>10 mm
+					</span>
+				{/if}
+			{/if}
 			{#if design.verify === 'ok'}
 				<span class="badge badge-ok" title="Decoded on your device and matched the content">
 					<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5.5l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>

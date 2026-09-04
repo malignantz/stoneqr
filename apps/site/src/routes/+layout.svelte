@@ -23,12 +23,16 @@
 				<span>Stone<span class="text-accent">QR</span></span>
 			</a>
 			<!-- preload-code=eager fetches every nav route's chunk right after load, so a click needs no network. -->
-			<nav aria-label="Primary" class="-mx-1 flex flex-wrap items-center gap-x-1 text-sm" data-sveltekit-preload-code="eager">
+			<nav
+				aria-label="Primary"
+				class="nav-scroll -mx-1 flex w-full min-w-0 items-center gap-x-1 overflow-x-auto px-1 text-sm md:w-auto md:flex-wrap md:overflow-visible"
+				data-sveltekit-preload-code="eager"
+			>
 				{#each NAV as item (item.href)}
 					<a
 						href={item.href}
 						aria-current={current === item.href ? 'page' : undefined}
-						class="rounded px-2 py-1 text-ink-2 no-underline hover:bg-paper-2 hover:text-ink aria-[current=page]:bg-ink aria-[current=page]:text-paper"
+						class="shrink-0 rounded px-2 py-1 text-ink-2 no-underline hover:bg-paper-2 hover:text-ink aria-[current=page]:bg-ink aria-[current=page]:text-paper"
 					>
 						{item.label}
 					</a>

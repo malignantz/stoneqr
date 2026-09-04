@@ -19,6 +19,7 @@
 	import { onMount, untrack, type Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import type { PayloadType } from '@stoneqr/engine/payloads';
+	import Icon from '$lib/components/Icon.svelte';
 	import ContentForm from './ContentForm.svelte';
 	import Preview from './Preview.svelte';
 	import StylePanel from './StylePanel.svelte';
@@ -72,7 +73,7 @@
 	<div class="flex flex-col items-start gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-x-8">
 		<div class="w-full min-w-0 lg:flex-1">{@render hero?.()}</div>
 		<div class="flex shrink-0 items-center gap-3 lg:pb-1">
-			<span class="ticket">Controls</span>
+			<span class="ticket">Show</span>
 			<div class="seg" role="group" aria-label="Control set">
 				<button type="button" aria-pressed={!advanced} onclick={() => setMode(false)}>Basic</button>
 				<button type="button" aria-pressed={advanced} onclick={() => setMode(true)}>Advanced</button>
@@ -80,25 +81,41 @@
 		</div>
 	</div>
 	{#if !advanced && inUse.length}
-		<p class="notice notice-info mt-3 max-w-none">
-			Advanced settings still apply: {inUse.join(', ')}.
-			<button type="button" class="underline" onclick={() => setMode(true)}>Switch to Advanced</button> to change them.
+		<p class="notice notice-info mt-3 flex max-w-none items-start gap-2">
+			<Icon name="warning" size={15} class="mt-0.5 text-accent" />
+			<span>
+				Advanced settings still apply: {inUse.join(', ')}.
+				<button type="button" class="underline" onclick={() => setMode(true)}>Switch to Advanced</button> to change them.
+			</span>
 		</p>
 	{/if}
 </div>
 
-<div class="mx-auto grid max-w-7xl gap-6 px-4 pt-5 pb-6 sm:px-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)_minmax(0,22rem)] lg:gap-8 lg:pb-8">
-	<div class="sheet order-2 p-5 lg:order-1 lg:p-6">
-		<ContentForm {design} />
-		<hr class="rule my-6" />
-		<StylePanel {design} open={styleOpen} {advanced} />
-		<hr class="rule my-6" />
-		<HalftonePanel {design} open={photoOpen || design.halftoneActive} {advanced} />
+<!--
+  Below lg this is one column and the order is Content, Preview, Style, Photo QR, Size and
+  download: someone on a phone meets the form they have to fill in before the card that tells
+  them to fill it in. The left column is `display: contents` there, so its two sheets take part
+  in the single-column order individually; at lg it becomes a normal block and they stack in the
+  first column as before. The bottom padding leaves room for the pinned preview bar.
+-->
+<div
+	id="generator"
+	class="mx-auto grid max-w-7xl gap-6 px-4 pt-5 pb-24 sm:px-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)_minmax(0,22rem)] lg:gap-8 lg:pb-8"
+>
+	<div class="contents lg:order-1 lg:block lg:space-y-6">
+		<div class="sheet order-1 p-5 lg:p-6">
+			<ContentForm {design} />
+		</div>
+		<div class="sheet order-3 p-5 lg:p-6">
+			<StylePanel {design} open={styleOpen} {advanced} />
+			<hr class="rule my-6" />
+			<HalftonePanel {design} open={photoOpen || design.halftoneActive} {advanced} />
+		</div>
 	</div>
-	<div class="order-1 lg:order-2 lg:sticky lg:top-6 lg:self-start">
-		<Preview {design} />
+	<div class="order-2 lg:order-2 lg:sticky lg:top-6 lg:self-start">
+		<Preview {design} {advanced} />
 	</div>
-	<div class="sheet order-3 p-5 lg:p-6">
+	<div class="sheet order-4 p-5 lg:order-3 lg:p-6">
 		<ExportPanel {design} {advanced} />
 	</div>
 </div>

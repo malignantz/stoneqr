@@ -8,7 +8,7 @@
 <Generator preset="wifi" styleOpen={false}>
 	{#snippet hero()}
 	<h1 class="reveal">Share your WiFi without spelling out the password.</h1>
-	<p class="reveal reveal-2 mt-2 max-w-2xl text-lg text-ink-2">Guests point their camera, tap the prompt, and they are on. The password never leaves this page.</p>
+	<p class="reveal reveal-2 mt-2 max-w-2xl text-lg text-ink-2">Guests point their camera, tap the prompt, and they are on. <span class="hidden sm:inline">The password never leaves this page.</span></p>
 	{/snippet}
 </Generator>
 

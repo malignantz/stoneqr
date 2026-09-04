@@ -3,6 +3,8 @@
 	import { downloadText, downloadBytes, copyPngToClipboard, slug } from '$lib/download';
 	import { svgToCanvas, canvasToPngBlob } from '$lib/svg-raster';
 	import { SITE } from '$lib/site';
+	import PreviewBar from '$lib/components/PreviewBar.svelte';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { describe, type Design } from './state.svelte';
 	import { SIZE_TIERS, tierFor, tierFit, tierDistance, formatIn } from './sizes';
 
@@ -213,10 +215,11 @@
 </script>
 
 <section class="grid gap-5" aria-labelledby="export-heading">
-	<div class="flex items-center justify-between gap-3">
-		<h2 id="export-heading" class="text-xl">Size and download</h2>
-		{#if design.encoded}<span class="badge badge-fixed {badgeClass}">{design.status.replace('-', ' ')}</span>{/if}
-	</div>
+	<SectionHeader title="Size and download" id="export-heading">
+		{#snippet badge()}
+			{#if design.encoded}<span class="badge badge-fixed {badgeClass}">{design.status.replace('-', ' ')}</span>{/if}
+		{/snippet}
+	</SectionHeader>
 
 	{#if advanced}
 		<div class="grid grid-cols-[1fr_auto] gap-3">
@@ -382,3 +385,17 @@
 		<p class="hint">Creates a short link in a free SignUpCity account and brings you back here with it. StoneQR stores nothing. SignUpCity's links carry a published no-deactivation policy.</p>
 	</div>
 </section>
+
+<!--
+  The phone-only pinned bar. It sits here rather than beside the preview because this is where
+  the export actions live, and duplicating them would mean duplicating the worker path, the
+  progress readout, and the stale-chunk handling with it. Its primary button mirrors this
+  panel's: PNG in Basic, SVG in Advanced.
+-->
+<PreviewBar
+	{design}
+	label={advanced ? 'SVG' : 'PNG'}
+	disabled={!canExport}
+	busy={busy === (advanced ? 'svg' : 'png')}
+	onDownload={() => (advanced ? svg() : png())}
+/>

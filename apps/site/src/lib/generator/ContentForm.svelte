@@ -1,35 +1,48 @@
 <script lang="ts">
 	import { PAYLOAD_TYPES, type PayloadType } from '@stoneqr/engine/payloads';
+	import Icon from '$lib/components/Icon.svelte';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import type { IconName } from '$lib/icons';
 	import type { Design } from './state.svelte';
 
 	let { design }: { design: Design } = $props();
 
 	const meta = $derived(PAYLOAD_TYPES.find((t) => t.id === design.type)!);
 	const contactTypes: PayloadType[] = ['vcard', 'mecard'];
+
+	/**
+	 * Ten types in five columns, so the grid comes out exactly two full rows. "Calendar event" is
+	 * shortened for the tile because it is twice the width of any other label; the full wording
+	 * stays on the tile's accessible name and in the description line under the grid.
+	 */
+	const SHORT: Partial<Record<PayloadType, string>> = { event: 'Event' };
 </script>
 
 <section class="grid gap-5" aria-labelledby="content-heading">
-	<div class="flex items-baseline justify-between gap-3">
-		<h2 id="content-heading" class="text-xl">Content</h2>
-		{#if design.shortUrl}
-			<button type="button" class="text-sm underline" onclick={() => (design.shortUrl = null)}>Clear dynamic link</button>
-		{/if}
-	</div>
+	<SectionHeader title="Content" id="content-heading">
+		{#snippet badge()}
+			{#if design.shortUrl}
+				<button type="button" class="text-sm underline" onclick={() => (design.shortUrl = null)}>Clear dynamic link</button>
+			{/if}
+		{/snippet}
+	</SectionHeader>
 
 	<div class="field">
 		<span class="label">Type</span>
-		<div class="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Content type">
+		<div class="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Content type">
 			{#each PAYLOAD_TYPES as t (t.id)}
 				<button
 					type="button"
 					role="radio"
 					aria-checked={design.type === t.id}
-					class="rounded border px-2.5 py-1 text-sm transition-colors {design.type === t.id
-						? 'border-ink bg-ink text-paper'
-						: 'border-rule-2 bg-white text-ink-2 hover:border-ink-3'}"
+					aria-label={t.label}
+					title={t.label}
+					class="type-tile"
+					data-on={design.type === t.id}
 					onclick={() => design.reset(t.id)}
 				>
-					{t.label}
+					<Icon name={t.id as IconName} size={17} />
+					<span class="type-name">{SHORT[t.id] ?? t.label}</span>
 				</button>
 			{/each}
 		</div>

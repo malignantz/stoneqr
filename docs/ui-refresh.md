@@ -1,6 +1,6 @@
 # UI refresh: cleaner, calmer, more obvious
 
-Status: planned 2026-09-04. Phases 0 and 1 built 2026-09-04; phases 2 to 5 open. Milestone M10 in `plan.md`. This is the design
+Status: planned 2026-09-04. Phases 0 to 2 built 2026-09-04; phases 3 to 5 open. Milestone M10 in `plan.md`. This is the design
 contract for the refresh; the rules in `CLAUDE.md` (Basic/Advanced split, `advancedInUse`, the
 hero row, "Photo QR" naming, the bundle budget, the decode check) all stay in force.
 
@@ -298,6 +298,32 @@ halftone decode badges behave exactly as before.
   tiers in Basic tangible when Garrett tests on a phone held next to a printed sheet.
 
 ---
+
+### 5b. What Phase 2 settled
+
+Built 2026-09-04.
+
+- **The left column is `display: contents` below `lg`.** Getting Content, Preview, Style, Photo
+  QR, Size and download into that order on a phone meant the content sheet and the style sheet
+  had to be separate grid items; making their wrapper `contents` on phones and `block` at `lg`
+  does that without duplicating any markup. On desktop the left column is now two stacked cards
+  rather than one long one, which separates what the code contains from what it looks like.
+- **The pinned bar lives in ExportPanel, not beside the preview.** Its button has to be the real
+  download, and the export path carries the worker, the progress readout, and the stale-chunk
+  message; duplicating that for a second button would have been the wrong trade. The bar finds
+  the preview card and the generator by id and watches both, so it appears once the preview
+  scrolls away and hides again below the tool rather than sitting over the footer. The rendered
+  Photo QR object URL moved onto `Design.halftonePreviewUrl` so the bar can show the same
+  thumbnail; Preview still owns creating and revoking it.
+- **Actual size is measured, not asserted.** At a 50 mm setting the preview host comes out 189 px
+  wide and the scale bar 38 px, which is exactly 50 mm and 10 mm at the 96 px per inch browsers
+  assume. The toggle's tooltip says so rather than implying the screen is calibrated.
+- **A whitespace trap.** Wrapping the second sentence of each hero in `hidden sm:inline` with the
+  joining space *inside* the span renders "expire.Vector" — Svelte trims it. The space goes
+  before the span.
+
+Cost: the generator page's eager client JavaScript went from 91.4 KB to 92.6 KB gzipped, against
+the 150 KB budget.
 
 ## 6. Phase 3: Size and download panel
 

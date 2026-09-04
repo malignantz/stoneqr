@@ -10,8 +10,8 @@
 	{#snippet hero()}
 	<h1 class="reveal">QR codes set in stone.</h1>
 	<p class="reveal reveal-2 mt-2 max-w-2xl text-lg text-ink-2">
-		Generated in your browser, never uploaded, never expire. Vector files with real millimetre sizes, a
-		print-size check, and a decode test before every download.
+		Generated in your browser, never uploaded, never expire. <span class="hidden sm:inline">Vector files
+		with real millimetre sizes, a print-size check, and a decode test before every download.</span>
 	</p>
 	{/snippet}
 </Generator>

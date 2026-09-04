@@ -73,7 +73,9 @@ h3,
 	text-wrap: balance;
 }
 h1 {
-	font-size: clamp(2.2rem, 5vw, 3.6rem);
+	/* The floor is a phone size, not a desktop one: at 375 px the old 2.2rem floor spent most of
+	   the first screen on the heading before the tool appeared. */
+	font-size: clamp(1.9rem, 5vw, 3.6rem);
 }
 h2 {
 	font-size: clamp(1.5rem, 3vw, 2.1rem);
@@ -684,6 +686,92 @@ a:hover {
 	outline-offset: 1px;
 }
 
+/* Content type tiles: an icon over a short name, ten of them in two rows of five. */
+.type-tile {
+	display: grid;
+	justify-items: center;
+	gap: 0.28rem;
+	padding: 0.5rem 0.15rem 0.45rem;
+	border: 1px solid var(--color-rule-2);
+	border-radius: 5px;
+	background: white;
+	color: var(--color-ink-2);
+	cursor: pointer;
+	transition: border-color 120ms, background 120ms, color 120ms;
+}
+.type-tile:hover {
+	border-color: var(--color-ink-3);
+	color: var(--color-ink);
+}
+.type-tile[data-on='true'] {
+	border-color: var(--color-ink);
+	background: var(--color-ink);
+	color: var(--color-paper);
+}
+.type-tile:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 1px;
+}
+.type-name {
+	font-family: var(--font-mono);
+	font-size: 0.55rem;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	line-height: 1.1;
+	text-align: center;
+}
+
+/*
+ * The 10 mm rule shown beside the preview when "Actual size" is on, so the code on screen can be
+ * checked against a real ruler. Drawn with end ticks, like a scale bar on a drawing.
+ */
+.scale-bar {
+	display: inline-block;
+	width: 10mm;
+	height: 0.5rem;
+	border: 1px solid var(--color-ink-3);
+	border-top: 0;
+}
+
+/*
+ * The pinned bar on phones, once the preview card has scrolled away. It is always in the DOM so
+ * its thumbnail is ready the moment it is needed; `data-show` slides it in and out, and it is
+ * taken out of the tab order while hidden.
+ */
+.preview-bar {
+	position: fixed;
+	inset: auto 0 0 0;
+	z-index: 30;
+	padding: 0.5rem 0;
+	border-top: 1px solid var(--color-rule);
+	background: color-mix(in oklab, var(--color-paper) 92%, white);
+	box-shadow: 0 -8px 24px -18px color-mix(in oklab, var(--color-ink) 60%, transparent);
+	transition: transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1), opacity 140ms;
+	transform: translateY(100%);
+	opacity: 0;
+	visibility: hidden;
+	padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+.preview-bar[data-show='true'] {
+	transform: none;
+	opacity: 1;
+	visibility: visible;
+}
+@media (prefers-reduced-motion: reduce) {
+	.preview-bar {
+		transition: none;
+	}
+}
+.preview-bar-thumb {
+	flex: 0 0 auto;
+	width: 3rem;
+	height: 3rem;
+	border: 1px solid var(--color-rule);
+	border-radius: 4px;
+	overflow: hidden;
+	padding: 2px;
+}
+
 /* Segmented control */
 .seg {
 	display: inline-flex;
@@ -891,6 +979,22 @@ a:hover {
 	}
 }
 
+/*
+ * The primary nav on phones: one row that scrolls sideways, with the right edge faded to say so,
+ * rather than seven links wrapping onto two lines above the fold.
+ */
+.nav-scroll {
+	scrollbar-width: none;
+}
+.nav-scroll::-webkit-scrollbar {
+	display: none;
+}
+@media (max-width: 767px) {
+	.nav-scroll {
+		mask-image: linear-gradient(to right, black calc(100% - 1.5rem), transparent);
+	}
+}
+
 /* Reduced chrome on print */
 @media print {
 	body {
@@ -898,7 +1002,8 @@ a:hover {
 	}
 	header,
 	footer,
-	nav {
+	nav,
+	.preview-bar {
 		display: none !important;
 	}
 }
