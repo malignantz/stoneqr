@@ -347,6 +347,17 @@ a:hover {
 	background: var(--color-paper-2);
 }
 
+/*
+ * A badge whose wording changes with the reading, sitting on a heading's line. Reserving the
+ * width of the longest label ("print safe") keeps it from resizing the heading beside it: in a
+ * phone-width column that heading rewraps between one line and two, which shifted the panel
+ * under it by a line on every keystroke in the print width field.
+ */
+.badge-fixed {
+	min-width: 7rem;
+	justify-content: center;
+}
+
 /* Notices */
 .notice {
 	border-left: 3px solid var(--color-rule-2);

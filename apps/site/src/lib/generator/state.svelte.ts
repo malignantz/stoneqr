@@ -164,6 +164,13 @@ export class Design {
 	bgColor = $derived(this.transparentBg ? 'transparent' : this.bg);
 	logoAreaRatio = $derived(this.logo && !this.halftoneActive ? this.logoSize * this.logoSize : 0);
 	widthMm = $derived(toMm(this.width, this.unit));
+	/**
+	 * The Advanced width field can be empty or nonsense mid-edit — clearing it to retype binds
+	 * `undefined` — and a code with no width would export as a nought-pixel file that still passes
+	 * the decode check, because verification rasterises at a fixed 8 px per module whatever the
+	 * paper size. Downloads wait for a real width.
+	 */
+	widthValid = $derived(Number.isFinite(this.widthMm) && this.widthMm > 0);
 
 	/** Style controls the user has touched, whether or not the styled renderer is in charge. */
 	styleRequested = $derived(

@@ -1,9 +1,19 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { contrastRatio, LOGO_BLOCK_RATIO, LOGO_WARN_RATIO } from '@stoneqr/engine';
 	import { preloadStyled, FRAME, type CornerDotStyle, type CornerSquareStyle, type DotStyle } from '$lib/styled';
 	import type { Design } from './state.svelte';
 
 	let { design, open = false, advanced = false }: { design: Design; open?: boolean; advanced?: boolean } = $props();
+
+	/**
+	 * The panel's own open state. It must not be an attribute driven straight off the prop: Svelte
+	 * merges every dynamic attribute in a block into one effect, so `details.open = open` is
+	 * reassigned whenever any sibling attribute's dependency changes — ticking "Transparent
+	 * background" updates the paper inputs' `disabled` in that same effect and slammed the panel
+	 * shut. Holding the state here and reading it back from the toggle event makes that write a no-op.
+	 */
+	let panelOpen = $state(untrack(() => open));
 
 	const dots: { id: DotStyle; label: string }[] = [
 		{ id: 'square', label: 'Square' },
@@ -60,7 +70,14 @@
 	}
 </script>
 
-<details class="group" {open} ontoggle={(e) => e.currentTarget.open && preloadStyled()}>
+<details
+	class="group"
+	open={panelOpen}
+	ontoggle={(e) => {
+		panelOpen = e.currentTarget.open;
+		if (panelOpen) preloadStyled();
+	}}
+>
 	<summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 select-none">
 		<h2 class="text-xl">Style</h2>
 		<span class="flex items-center gap-3">

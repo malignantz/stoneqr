@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { IMAGE_ZOOM_MAX, IMAGE_ZOOM_MIN, IMAGE_OFFSET_MAX, THRESHOLD_MAX, THRESHOLD_MIN } from '@stoneqr/engine';
 	import { GLYPHS, glyphDataUrl, glyphName, glyphSvg, type Glyph } from '$lib/glyphs';
 	import type { Design, HalftoneTone } from './state.svelte';
@@ -10,6 +11,17 @@
 	];
 
 	let { design, open = false, advanced = false }: { design: Design; open?: boolean; advanced?: boolean } = $props();
+
+	/**
+	 * The panel's own open state, for the reason spelled out in StylePanel: an attribute bound
+	 * straight to the prop is reasserted by the block's shared attribute effect, which both closed
+	 * the panel mid-edit and, once a picture was in, made it impossible to fold away. The prop can
+	 * still open the panel — /photo, or a picture arriving — but never closes it.
+	 */
+	let panelOpen = $state(untrack(() => open));
+	$effect(() => {
+		if (open) panelOpen = true;
+	});
 
 	let imageError = $state('');
 	const cropChanged = $derived(design.halftoneZoom !== 1 || design.halftoneOffsetX !== 0 || design.halftoneOffsetY !== 0);
@@ -70,7 +82,7 @@
 	}
 </script>
 
-<details class="group" {open}>
+<details class="group" open={panelOpen} ontoggle={(e) => (panelOpen = e.currentTarget.open)}>
 	<summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 select-none">
 		<h2 class="text-xl">Photo QR</h2>
 		<span class="ticket transition-transform group-open:rotate-90">▶</span>

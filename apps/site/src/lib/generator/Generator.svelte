@@ -1,16 +1,24 @@
 <script module lang="ts">
-	// One design per browser session. The landing pages (/wifi, /vcard, /event, /logo) mount
-	// this same component, so keeping the state here means a nav click only changes the
+	import { browser } from '$app/environment';
+	import { Design } from './state.svelte';
+
+	// One design per browser session. The landing pages (/wifi, /vcard, /event, /logo, /photo)
+	// mount this same component, so keeping the state here means a nav click only changes the
 	// preselected type: size, style, and everything typed so far survive the navigation.
-	let shared: Design | undefined;
+	//
+	// It is built here, at module scope, and never inside the instance. A $derived created while a
+	// component is initialising belongs to that component's effect, and every field of Design is a
+	// $derived; a client-side navigation destroys the first Generator, which would leave the whole
+	// graph (payload, encoded, plainSvg, isEmpty, status) inert and frozen at its last value, so the
+	// preview would sit on "Rendering…" until a full page load. Module scope has no owning effect.
+	// Prerendering gets a fresh instance per page instead, so no state leaks between routes at build time.
+	const shared = browser ? new Design() : undefined;
 </script>
 
 <script lang="ts">
 	import { onMount, untrack, type Snippet } from 'svelte';
-	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import type { PayloadType } from '@stoneqr/engine/payloads';
-	import { Design } from './state.svelte';
 	import ContentForm from './ContentForm.svelte';
 	import Preview from './Preview.svelte';
 	import StylePanel from './StylePanel.svelte';
@@ -24,8 +32,7 @@
 		hero
 	}: { preset?: PayloadType; styleOpen?: boolean; photoOpen?: boolean; hero?: Snippet } = $props();
 
-	// Prerendering gets a fresh instance per page so no state leaks between routes at build time.
-	const design = browser ? (shared ??= new Design()) : new Design();
+	const design = shared ?? new Design();
 	design.type = untrack(() => preset);
 
 	// Basic shows the controls most people need; Advanced shows everything. Remembered per browser.

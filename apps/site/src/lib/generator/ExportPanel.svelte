@@ -8,7 +8,9 @@
 
 	let { design, advanced = false }: { design: Design; advanced?: boolean } = $props();
 
-	const canExport = $derived(!!design.encoded && design.verify === 'ok' && !design.logoBlocked && design.status !== 'blocked');
+	const canExport = $derived(
+		!!design.encoded && design.verify === 'ok' && !design.logoBlocked && design.status !== 'blocked' && design.widthValid
+	);
 	const svgText = $derived(design.styled ? design.styledSvg : design.plainSvg);
 	/** Physical width of the styled artwork: the code width plus the frame when there is one. */
 	const artWidthMm = $derived(design.widthMm * (design.styled ? design.styledScale : 1));
@@ -213,7 +215,7 @@
 <section class="grid gap-5" aria-labelledby="export-heading">
 	<div class="flex items-center justify-between gap-3">
 		<h2 id="export-heading" class="text-xl">Size and download</h2>
-		{#if design.encoded}<span class="badge {badgeClass}">{design.status.replace('-', ' ')}</span>{/if}
+		{#if design.encoded}<span class="badge badge-fixed {badgeClass}">{design.status.replace('-', ' ')}</span>{/if}
 	</div>
 
 	{#if advanced}
@@ -366,7 +368,7 @@
 		{/if}
 		{#if design.encoded && !canExport}
 			<p class="hint">
-				{#if design.verify === 'checking'}Checking that the code decodes…{:else if design.verify === 'fail'}Downloads unlock once the code decodes on your device.{:else if design.logoBlocked}Shrink the logo below 25% of the area to download.{:else}Fix the blocking issue above to download.{/if}
+				{#if design.verify === 'checking'}Checking that the code decodes…{:else if design.verify === 'fail'}Downloads unlock once the code decodes on your device.{:else if !design.widthValid}Enter a print width to download.{:else if design.logoBlocked}Shrink the logo below 25% of the area to download.{:else}Fix the blocking issue above to download.{/if}
 			</p>
 		{/if}
 		<p class="text-center text-xs text-ink-3">{SITE.promise}</p>
