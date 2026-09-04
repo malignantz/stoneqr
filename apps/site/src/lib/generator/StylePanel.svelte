@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { contrastRatio, LOGO_BLOCK_RATIO, LOGO_WARN_RATIO } from '@stoneqr/engine';
 	import { preloadStyled, FRAME, type CornerDotStyle, type CornerSquareStyle, type DotStyle } from '$lib/styled';
+	import { LOOKS, type LookId } from '$lib/looks';
 	import ColourField from '$lib/components/ColourField.svelte';
 	import DropTile from '$lib/components/DropTile.svelte';
 	import QrArt from '$lib/components/QrArt.svelte';
@@ -48,6 +49,11 @@
 		{ id: 'linear', label: 'Linear' },
 		{ id: 'radial', label: 'Radial' }
 	] as const;
+	/**
+	 * The look tiles, typed to admit the design's 'custom' state: a hand-made combination selects
+	 * no tile, which is the honest answer rather than a stale one.
+	 */
+	const looks: readonly { id: LookId | 'custom'; label: string }[] = LOOKS;
 	const ctas = ['Scan me', 'Scan to RSVP', 'Scan for menu', 'Scan to join WiFi', 'Scan to save contact', 'Scan for details'];
 
 	const contrast = $derived(design.transparentBg ? null : contrastRatio(design.fg, design.bg));
@@ -76,9 +82,14 @@
 	const summary = $derived.by(() => {
 		const parts: string[] = [];
 		if (off) parts.push('Off: photo');
-		const dot = dots.find((d) => d.id === design.dot);
-		if (dot && design.dot !== 'square') parts.push(dot.label);
-		if (design.cornerSquare !== 'square' || design.cornerDot !== 'square') parts.push('Corners');
+		const look = LOOKS.find((l) => l.id === design.look);
+		if (look) {
+			if (look.id !== 'classic') parts.push(look.label);
+		} else {
+			const dot = dots.find((d) => d.id === design.dot);
+			if (dot && design.dot !== 'square') parts.push(dot.label);
+			if (design.cornerSquare !== 'square' || design.cornerDot !== 'square') parts.push('Corners');
+		}
 		if (design.gradient !== 'none') parts.push('Gradient');
 		if (design.fg !== '#000000' || (design.bg !== '#ffffff' && !design.transparentBg)) parts.push('Colour');
 		if (design.transparentBg) parts.push('Transparent');
@@ -200,10 +211,15 @@
 			<!-- Shape -->
 			<div class="grid gap-3">
 				<p class="subhead">Shape</p>
-				<Swatches label="Modules" options={dots} bind:value={design.dot} columns={5} ariaLabel="Module shape">
-					{#snippet draw(id)}<QrArt kind="modules" style={id} />{/snippet}
+				<!-- One tile sets all three shapes; Advanced can then adjust each below, and a hand-made
+				     combination leaves no look selected. -->
+				<Swatches label="Look" options={looks} bind:value={design.look} columns={5} ariaLabel="Look">
+					{#snippet draw(id)}{#if id !== 'custom'}<QrArt kind="look" style={id} />{/if}{/snippet}
 				</Swatches>
 				{#if advanced}
+					<Swatches label="Modules" options={dots} bind:value={design.dot} columns={5} ariaLabel="Module shape">
+						{#snippet draw(id)}<QrArt kind="modules" style={id} />{/snippet}
+					</Swatches>
 					<Swatches label="Corner frames" options={cornerSquares} bind:value={design.cornerSquare} columns={4} ariaLabel="Corner frame shape">
 						{#snippet draw(id)}<QrArt kind="frame" style={id} />{/snippet}
 					</Swatches>

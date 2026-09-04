@@ -21,6 +21,7 @@ import {
 } from '@stoneqr/engine';
 import { payloads, PayloadError, wifiWarnings, type PayloadType } from '@stoneqr/engine/payloads';
 import type { CornerDotStyle, CornerSquareStyle, DotStyle, GradientKind } from '$lib/styled';
+import { LOOKS, lookFor, type LookId } from '$lib/looks';
 
 export interface Fields {
 	url: { url: string };
@@ -165,6 +166,21 @@ export class Design {
 		this.halftoneGrayscale = tone === 'grey';
 	}
 
+	/**
+	 * The style preset the three shapes add up to, or 'custom' when they were set by hand. One
+	 * control, three fields, the same way halftoneTone works; nothing extra is stored.
+	 */
+	get look(): LookId | 'custom' {
+		return lookFor(this.dot, this.cornerSquare, this.cornerDot)?.id ?? 'custom';
+	}
+	set look(id: LookId | 'custom') {
+		const l = LOOKS.find((x) => x.id === id);
+		if (!l) return;
+		this.dot = l.dot;
+		this.cornerSquare = l.cornerSquare;
+		this.cornerDot = l.cornerDot;
+	}
+
 	/** Effective ECC: forced to H whenever a logo or a halftone picture is present. */
 	ecc = $derived<Ecc>(this.logo || this.halftoneActive ? 'H' : this.eccChoice);
 	bgColor = $derived(this.transparentBg ? 'transparent' : this.bg);
@@ -204,7 +220,8 @@ export class Design {
 			if (this.halftoneContrast !== 1) out.push('photo contrast');
 		}
 		if (this.transparentBg) out.push('transparent background');
-		if (this.cornerSquare !== 'square' || this.cornerDot !== 'square') out.push('corner shapes');
+		// Basic can set corner shapes through a look; only a hand-made combination is Advanced's alone.
+		if (this.look === 'custom' && (this.cornerSquare !== 'square' || this.cornerDot !== 'square')) out.push('corner shapes');
 		if (this.gradient !== 'none') out.push('gradient');
 		if (this.scanDistanceM) out.push('scan distance');
 		if (this.eccChoice !== 'M' && !this.logo && !this.halftoneActive) out.push(`error correction ${this.eccChoice}`);

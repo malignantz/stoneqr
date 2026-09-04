@@ -45,14 +45,15 @@
 		aria-label={ariaLabel ?? label}
 		use:radioKeys
 	>
-		{#each options as o (o.id)}
-			<!-- Roving tabindex: Tab reaches the chosen tile, the arrow keys move between them. -->
+		{#each options as o, i (o.id)}
+			<!-- Roving tabindex: Tab reaches the chosen tile, the arrow keys move between them. With
+			     no tile chosen (a hand-made combination in the Look group) the first one takes it. -->
 			<button
 				type="button"
 				class="swatch"
 				role="radio"
 				aria-checked={value === o.id}
-				tabindex={value === o.id ? 0 : -1}
+				tabindex={value === o.id || (i === 0 && !options.some((x) => x.id === value)) ? 0 : -1}
 				data-on={value === o.id}
 				title={o.title ?? o.label}
 				{disabled}

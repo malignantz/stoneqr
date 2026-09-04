@@ -502,11 +502,26 @@ controls that claim radio semantics.
 
 Cost: no new chunks; the generator page's eager JavaScript moved by well under a kilobyte.
 
+## 8d. Style presets
+
+Added 2026-09-04, the one item from §9 worth doing now that the swatches exist. A "Look" row
+leads the Shape group in both control sets: five drawn tiles (Classic, Rounded, Dots, Leaf,
+Soft), each the corner of a code with a finder pattern and a patch of data in that look. One tile
+sets the module shape and both corner shapes together; in Basic it replaces the Modules row, and
+in Advanced the Modules, Corner frames, and Corner dots rows sit under it for adjusting.
+
+A look is matched, not stored (`Design.look` in `state.svelte.ts`, presets in `lib/looks.ts`):
+the design keeps its three shapes and the tile they equal is the selected one, so a hand change
+in Advanced leaves no tile selected rather than a stale one. Because Basic can now set corner
+shapes through a look, `advancedInUse` reports "corner shapes" only for a combination no look
+offers. The collapsed summary names the look ("Soft · Logo") and falls back to the old detail
+for a custom one. Colours, the logo, and the frame are not part of a look; they are separate
+decisions.
+
 ## 9. Out of scope for this refresh
 
 - Dark mode. The paper look is the brand; a dark theme is a separate decision.
-- Style presets ("Classic, Soft, Dotted, Leaf" one-click looks). Cheap to add on top of the new
-  swatches, but it is a feature, not a cleanup; list it in `plan.md` "Later" if wanted.
+- ~~Style presets~~ — built, see §8d.
 - A draggable crop box for Photo QR.
 - Any change to the engine, the renderers, the goldens, the exports, or the SignUpCity hand-off.
 - New copy for the marketing pages beyond trimming ledes on phones.

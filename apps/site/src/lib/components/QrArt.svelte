@@ -5,6 +5,7 @@
 	 * exactly the piece the control changes.
 	 */
 	import { cornerDotPath, cornerFramePath, modulePatchPath } from '$lib/shape-art';
+	import { LOOKS, type LookId } from '$lib/looks';
 	import type { CornerDotStyle, CornerSquareStyle, DotStyle } from '$lib/styled';
 
 	/**
@@ -12,11 +13,24 @@
 	 * through `props.kind`, but loses the link the moment `kind` and `style` become separate
 	 * variables, which would make every style id assignable to every drawing function.
 	 */
-	let props: { kind: 'modules'; style: DotStyle } | { kind: 'frame'; style: CornerSquareStyle } | { kind: 'dot'; style: CornerDotStyle } =
-		$props();
+	let props:
+		| { kind: 'modules'; style: DotStyle }
+		| { kind: 'frame'; style: CornerSquareStyle }
+		| { kind: 'dot'; style: CornerDotStyle }
+		| { kind: 'look'; style: LookId } = $props();
+
+	/** A look tile is the corner of a code: the finder pattern with a patch of data beside it. */
+	const look = $derived(props.kind === 'look' ? LOOKS.find((l) => l.id === props.style) : undefined);
 </script>
 
-{#if props.kind === 'modules'}
+{#if look}
+	<svg viewBox="-0.3 -0.3 12.3 12.3" aria-hidden="true">
+		<path d={cornerFramePath(look.cornerSquare)} fill="none" stroke="currentColor" stroke-width="1" />
+		<path d={cornerDotPath(look.cornerDot)} fill="currentColor" />
+		<path d={modulePatchPath(look.dot)} fill="currentColor" transform="translate(7.6 7.6)" />
+		<path d={modulePatchPath(look.dot)} fill="currentColor" transform="translate(7.6 0) scale(1 0.9)" opacity="0.55" />
+	</svg>
+{:else if props.kind === 'modules'}
 	<svg viewBox="-0.25 -0.25 4.5 4.5" fill="currentColor" aria-hidden="true">
 		<path d={modulePatchPath(props.style)} />
 	</svg>
