@@ -13,7 +13,8 @@
     "test": "bun run --cwd packages/engine test && bun run --cwd apps/site test",
     "check": "bun run --cwd apps/site check",
     "deploy": "./deploy.sh",
-    "budget": "node scripts/budget.mjs apps/site/build"
+    "budget": "node scripts/budget.mjs apps/site/build",
+    "og": "bun run scripts/og/generate.mjs"
   },
   "packageManager": "bun@1.4.0"
 }
