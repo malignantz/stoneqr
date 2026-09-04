@@ -1,0 +1,391 @@
+# UI refresh: cleaner, calmer, more obvious
+
+Status: planned 2026-09-04, nothing built yet. Milestone M10 in `plan.md`. This is the design
+contract for the refresh; the rules in `CLAUDE.md` (Basic/Advanced split, `advancedInUse`, the
+hero row, "Photo QR" naming, the bundle budget, the decode check) all stay in force.
+
+The site already has a good voice: warm paper, ink, one verdigris accent, mono "ticket" labels,
+Fraunces headings, the cutting-mat grid. Nothing here replaces that. The problem is that the
+panels underneath the voice were built control by control, so the generator reads as a stack of
+form fields rather than a designed tool. The fix is a small set of shared primitives, then
+rebuilding each panel out of them, starting with the Advanced Style section.
+
+---
+
+## 1. What is wrong today
+
+Audited on the dev build at 1440 px and 375 px, Basic and Advanced.
+
+### Style panel (Advanced) — the weakest surface
+
+- **Shape pickers are words in boxes.** "Square, Rounded, Dots, Classy, Soft" and "Square,
+  Rounded, Round, Classy" give no idea what they draw, and "Round" next to "Rounded" is a
+  guessing game. Nothing on the site shows what a corner frame or a corner dot even is.
+- **Segmented controls wrap badly** in the 22 rem column: "Soft" orphans onto its own row under
+  Modules; Corner frames and Corner dots sit in half-width columns and break into three rows
+  each with a lone "Round" at the bottom.
+- **No hierarchy.** Colours, transparency, contrast readout, modules, corners, gradient, logo, and
+  frame are eight blocks of identical weight in one column. The eye has nowhere to start.
+- **Browser chrome leaks through.** The logo picker is the native "Choose File · No file chosen"
+  control, the colour wells are native, the range sliders are native. Each one is in a different
+  visual language from the paper-and-ink chrome around it.
+- **Loose readouts.** "Contrast 21.0:1" floats under the Transparent checkbox with no relation to
+  the colour fields it describes. The frame toggle's label needs four `!important` overrides to
+  look like body text.
+- **Nothing is previewed.** You cannot see a gradient, a corner style, or a frame until it has
+  rendered in the big preview, and with a picture blended in the whole panel greys out with no
+  memory of what was set.
+
+### The rest of the generator
+
+- **`<details>` accordions with a text "▶"** as the chevron; the collapsed heading tells you
+  nothing about what is inside or whether anything is set (a logo, a frame, a picture).
+- **Content type picker** is ten chips wrapping 4 / 4 / 2. Works, but reads as tags, not a choice.
+- **Size and download (Advanced)** is one long column: width, unit, five preset chips, read-from,
+  the notice, error correction, quiet zone / min version / mask, dpi, then a 2 × 2 grid of buttons
+  in four different button styles (accent, ink, secondary, secondary), then two small buttons.
+  The grouping is there in the code but not on the page.
+- **Sliders** (logo size, margin, gradient angle, six in Photo QR) are unstyled and their label /
+  slider / value columns do not align between rows.
+- **Phones.** The preview card comes first, so a new visitor sees an empty card that says "type
+  something in the content panel" before they see the content panel. The plan calls for a sticky
+  preview on mobile; it is not sticky. The nav wraps to two lines and the hero fills most of the
+  first screen before the tool appears.
+- **The toggle** is labelled "CONTROLS Basic | Advanced" in a ticket, which is accurate but reads
+  as a settings label rather than an invitation.
+
+### Other pages
+
+- `/print-size`, `/bulk`, `/compare`, `/never-expires` share the eyebrow + h1 + lede opening and
+  the `.sheet` cards, which is right. `/bulk` is the densest page on the site and will benefit
+  from the same section primitives as the generator; the others need only the global polish.
+- The footer and header are fine on desktop. On phones the header needs a plan for seven links.
+
+---
+
+## 2. Design principles for the refresh
+
+1. **One vocabulary.** Every panel is built from the same five parts: a section header, a field
+   row, a swatch grid, a slider row, and a drop tile. If a control needs a sixth, the sixth is
+   added to `app.css` and used everywhere, never styled inline.
+2. **Show, don't name.** Any choice that changes how the code looks is picked from a drawn
+   swatch, not a word. Words are captions under the swatch, in ticket type.
+3. **Group by question, order by frequency.** Style is four questions: what colours, what shape,
+   is there a logo, is there a frame. Size and download is three: how big, how encoded, which
+   file. Each group gets a ticket header and a hairline; the most-used group comes first.
+4. **Readouts sit with what they measure.** The contrast ratio belongs beside the colour pair,
+   the logo percentage beside the logo slider, the module size beside the width.
+5. **The collapsed state carries a summary.** A closed Style panel says "Rounded · Logo · Frame",
+   a closed Photo QR panel says "WiFi shape · Silhouette", so nothing is hidden by folding.
+6. **Native controls wear our clothes.** Colour wells, file inputs, and range sliders stay native
+   for accessibility and keyboard behaviour, and are restyled or wrapped so they look like part
+   of the sheet.
+7. **Calm motion.** 120 ms colour and border transitions, the existing first-load reveal, nothing
+   that moves layout. Respect `prefers-reduced-motion` as now.
+8. **No new dependencies, no new chunks.** Swatch previews are inline SVG, at most a few hundred
+   bytes each. The generator page stays well inside the 150 KB budget (85 KB today).
+
+---
+
+## 3. Primitives to add (Phase 0)
+
+All in `apps/site/src/app.css` under `@layer components`, plus five small Svelte components in
+`apps/site/src/lib/components/`. Each component is dumb: props in, events out, no `Design` import,
+so the bulk page and the print-size page can use them too.
+
+| Primitive | Where | What it is |
+|---|---|---|
+| `SectionHeader.svelte` | components | h2 or h3 in Fraunces, optional badge slot on the right, optional one-line summary in ticket type shown only when the section is collapsed, a real chevron icon. Replaces every `<details><summary>` and the plain `<h2 class="text-xl">` headings. |
+| `.subhead` | app.css | A ticket label with a hairline rule after it: `COLOURS ————`. The grouping device inside a panel. |
+| `.row` | app.css | Grid `[label] [control] [readout]` at `auto 1fr auto`, readout in `.num`, so slider rows and short field rows align down the whole column. |
+| `Slider.svelte` | components | Native `<input type=range>` in a `.row`, with the track and thumb restyled (ink thumb, rule track, accent fill via `background-size` trick), label, unit, and an optional reset-to-default dot that appears when the value is not the default. |
+| `ColourField.svelte` | components | A 36 px swatch button beside a mono hex input, with a "disabled" style for the Paper field when transparent is on. The swatch opens our own `ColourPopover` (below); the native `<input type=color>` is gone from the site. |
+| `ColourPopover.svelte` | components | The in-page colour picker: a modal `<dialog>` anchored to the swatch, closed by a click anywhere outside, with that click swallowed. Detailed in section 3a. |
+| `Swatches.svelte` | components | A fixed-column grid of square tiles (`grid-cols-5` at 22 rem), each tile holding an inline SVG drawn from a snippet, caption beneath in ticket type, `aria-pressed`, ink border when selected. Never wraps a tile onto a lonely row because the column count is fixed per group. |
+| `DropTile.svelte` | components | A dashed tile, "Drop a picture here or choose a file", PNG / JPEG / WebP note, native file input inside for keyboard and click, drag-over state in accent. When a file is set it becomes a thumbnail row with the name and a Remove link. Used for the logo and for Photo QR. |
+| `.toggle` | app.css | A checkbox styled as a small switch for on/off decisions that reveal more controls (frame, transparent background, blend the picture). Plain checkboxes stay for flags inside forms (hidden network, all day). |
+| Icons | `lib/icons.ts` | About fourteen 16 px stroke icons as string constants: chevron, tick, warning, upload, remove, and one per content type. Inline SVG, no sprite, no library. |
+
+Also in Phase 0: restyle the native file input and range input globally so any place the
+components are not used yet still looks intentional, and replace the text "▶" everywhere.
+
+### 3a. The colour picker
+
+The native colour input opens an operating-system window: it floats away from the swatch, it
+stays open while you click elsewhere, and on macOS it is the full Colors panel with its own tabs.
+Every colour on the site (Ink, Paper, Fill "to", Frame, Frame text, and Ink and Paper on `/bulk`)
+goes through `ColourField`, so replacing the native input in one component fixes all of them.
+
+**Behaviour, in order of importance.**
+
+1. Clicking a swatch opens a small card (about 232 px wide) directly under the swatch, left
+   edge aligned, flipped above or shifted inward when it would leave the viewport.
+2. Clicking or tapping anywhere outside the card closes it, and that click does nothing else:
+   it does not press a button, focus a field, or select a module shape underneath.
+3. Escape closes it. Focus goes back to the swatch.
+4. Changes apply live while dragging, so the preview updates as you move; the preview's
+   existing 60 ms style debounce absorbs the drag.
+5. Scrolling or resizing the page closes it, so the card never drifts away from its swatch.
+
+**How the click-away swallows the click.** The card is a `<dialog>` opened with `showModal()`.
+The browser puts a modal dialog in the top layer and marks everything else on the page inert, so
+a pointer event outside the card lands on the dialog's `::backdrop`, never on the page. The
+component listens for `pointerdown` on the dialog element itself (the backdrop is part of the
+dialog for hit-testing; a `pointerdown` whose target is the dialog and not a child is a backdrop
+press) and calls `close()`. The backdrop is fully transparent, so the page looks unchanged while
+the card is open, but it is untouchable. This is the only approach that swallows the click for
+free: the Popover API's light dismiss and a `document` click listener both let the outside click
+through to whatever is under it, which is exactly the complaint.
+
+**Anatomy of the card.**
+
+```
+┌──────────────────────────────┐
+│ ┌──────────────────────────┐ │   saturation / value square, 200 × 140,
+│ │            ●             │ │   pointer drag, arrow keys move 1 %, shift 10 %
+│ └──────────────────────────┘ │
+│ ━━━━━━━━●━━━━━━━━━━━━━━━━━━━ │   hue strip: a native range, restyled, 0–360
+│ [#1F6F63]      ◉ Eyedropper  │   mono hex field (live, validated), EyeDropper
+│ ■ ■ ■ ■ ■ ■ ■ ■              │   swatches: ink, paper, accent, black, white,
+└──────────────────────────────┘   plus the other colours currently in the design
+```
+
+- The square and hue strip work in HSV; conversion to and from hex is about 30 lines in
+  `lib/colour.ts` with unit tests (round trip every swatch, the six site tokens, and the edge
+  cases `#000`, `#fff`, and pure hues).
+- The hex field accepts 3 or 6 digits with or without `#`, normalises on blur, and shows the
+  block colour on an invalid value without changing the design.
+- The eyedropper button appears only where `window.EyeDropper` exists (Chrome and Edge; Safari
+  and Firefox hide it). It lets someone match a brand colour from a logo on screen.
+- The swatch row always includes the site's ink, paper, and accent, black and white, and
+  whichever of Ink, Paper, Fill "to", Frame, and Frame text are set in the current design, so
+  matching the frame to the ink is one click.
+- Keyboard: Tab order is square, hue, hex, eyedropper, swatches. The square is a `role=slider`
+  pair (aria-valuetext "saturation 40 %, brightness 70 %"). The dialog traps focus by nature.
+- Touch: the same card, anchored the same way, with a 44 px hit area on the square's handle. On
+  screens under 480 px it is centred horizontally instead of aligned to the swatch, because a
+  swatch at the column's right edge would push the card off screen.
+
+**Sizing and dependencies.** About 180 lines of Svelte and 30 of TypeScript, no library, no lazy
+chunk, roughly 2 KB gzipped, in the core generator bundle. Every browser the site supports has
+had modal `<dialog>` since 2022 (Safari 15.4, Firefox 98, Chrome 37).
+
+**Acceptance.** With the card open, clicking a module swatch, the Basic/Advanced toggle, a
+download button, or a text field does nothing except close the card; a second click then acts
+normally. Escape closes it and returns focus to the swatch. Dragging in the square updates the
+preview live and the decode badge still settles to "Scannable". The card never renders partly
+off screen at 375 px or 1440 px. Contrast readouts and the frame colours behave as before.
+
+**Where it lands.** Phase 0, since `ColourField` is a primitive; it is exercised by Phase 1 on
+the five Style colours and by Phase 5 on `/bulk`.
+
+---
+
+## 4. Phase 1: Style panel
+
+The reason this refresh exists. Basic and Advanced share the same layout; Basic simply shows
+fewer groups.
+
+```
+Style                                   Rounded · Logo · Frame   ⌄
+──────────────────────────────────────────────────────────────────
+COLOURS ─────────────────────────────────────────  21:1 print safe
+[■] #000000   Ink          [□] #ffffff   Paper     (·) Transparent
+Fill   ( Solid | Linear | Radial )                      Advanced
+       [■] to #1f6f63   Angle ────●──── 45°
+
+SHAPE ─────────────────────────────────────────────────────────────
+Modules   [▦] [▩] [⁙] [◆] [▢]        five drawn tiles, captions under
+          Square Rounded Dots Leaf Soft
+Corners   Frame  [▣] [▢] [◯] [◆]      Advanced; drawn as the finder
+          Dot    [■] [●] [◆]          pattern with that corner style
+
+LOGO ──────────────────────────────────────────────────────────────
+[ Drop a logo here or choose a file ]  → thumbnail · name · Remove
+Size    ────●────────  14% area         readout turns warn / block
+Margin  ──●──────────  1 module
+(·) Clear space behind the logo
+
+FRAME ─────────────────────────────────────────────────────────────
+(·) Call to action under the code
+    [ Scan for menu                ]   chips: Scan me · Scan to RSVP …
+    [■] Frame   [■] Text
+```
+
+Specifics:
+
+- **Group order** is Colours, Shape, Logo, Frame in both sets. Basic hides Fill, Corners, and
+  Transparent; those keep reporting through `Design.advancedInUse` exactly as now.
+- **Colours** become two `ColourField`s on one row. The contrast reading moves into the subhead's
+  right slot as a badge: `21:1 · print safe` in ok green, `3.2:1 · too low` in warn. It uses the
+  existing `.badge` classes so it matches the Size panel's badge. Transparent is a `.toggle` on
+  the same row in Advanced.
+- **Fill** (was "Gradient") is Solid / Linear / Radial. When not Solid, a second colour field
+  labelled "to" and, for Linear, an angle slider appear on the next line. The hint about RGB
+  printing stays.
+- **Modules** is a `Swatches` group of five. Each tile draws a 3 × 3 patch of modules in that
+  style (square rects, rounded rects, circles, the leaf shape, extra-rounded). The library's ids
+  do not change; only the captions do: `classy` is captioned "Leaf", `extra-rounded` "Soft".
+- **Corners** is one subhead with two swatch rows, Frame and Dot, each tile drawing a finder
+  pattern (7 × 7) with that corner-frame or corner-dot style. Captions use one vocabulary across
+  both rows: Square, Rounded, Circle, Leaf. No more "Round" beside "Rounded".
+- **Logo** uses `DropTile`. Once a logo is set, the tile becomes the thumbnail row, then two
+  `Slider`s (Size with the % area readout coloured by the warn and block ratios, Margin in
+  modules) and the knockout toggle, reworded "Clear space behind the logo". The ECC-forced-to-H
+  hint stays, one line.
+- **Frame** is a `.toggle` labelled "Call to action under the code". On, it reveals the text
+  input with the datalist, the six chips, and two `ColourField`s labelled Frame and Text. The
+  `!important` label hack goes away because the toggle row is its own primitive.
+- **While a picture is blended in**, the panel still greys out and the notice stays, but the
+  collapsed summary keeps reporting what is set ("Off: photo · Rounded · Frame") so the user knows
+  what comes back when the picture is removed.
+- **Width.** The left column grows from 22 rem to 24 rem on `lg` and the right column shrinks to
+  match, so five 40 px tiles with 8 px gaps fit with the panel padding. The preview column takes
+  the remainder, as now.
+
+Acceptance: at 1440 px no segmented control or swatch group wraps; every visual choice shows a
+drawing; every readout sits on the row of the control it describes; `bun run check` and
+`bun run test` pass unchanged (no renderer changes, so no golden updates); the styled and
+halftone decode badges behave exactly as before.
+
+---
+
+## 5. Phase 2: Generator shell and Content panel
+
+- **Section headers.** Content, Style, Photo QR, Size and download all use `SectionHeader`.
+  Content is always open (no chevron). Style and Photo QR collapse with a summary. The
+  `panelOpen` reasoning in the two panels (why the open state is held locally and never driven
+  by the prop) moves into the component with its comment intact.
+- **Content type** becomes a 5 × 2 grid of tiles, each with its 16 px icon over the label,
+  selected tile in ink. Same `role=radiogroup` semantics. The description line under it stays.
+- **The toggle** reads `Show  ( Basic | Advanced )` with the ticket "Show" rather than
+  "Controls". The "Advanced settings still apply" notice stays but gains the chevron icon and the
+  lighter `.notice-info` treatment.
+- **Phones (below `lg`).** Order becomes Content, Preview, Style, Photo QR, Size and download.
+  Once the full preview scrolls off screen, a compact bar pins to the bottom of the viewport: a
+  56 px thumbnail of the current render, the decode badge, and the primary download button. It
+  is one small component (`PreviewBar.svelte`) driven by an `IntersectionObserver` on the preview
+  card and hidden at `lg` and above. This is the "sticky preview" the plan asked for, done in a
+  way that does not steal the first screen.
+- **Hero on phones.** The h1 clamp floor drops from 2.2 rem to 1.9 rem below `sm`, and the
+  landing-page ledes are trimmed to one sentence on phones with a `hidden sm:inline` second
+  sentence. The first-load reveal is unchanged.
+- **Header on phones.** The nav becomes a single horizontally scrolling row with a fade at the
+  right edge below `md`, so it never wraps. Desktop is unchanged. Labels stay as they are (they
+  match the routes and the OG cards).
+- **Preview card.** Keep the caption strip. Add a thin "actual size" toggle in the strip
+  (Advanced only): when on, the preview renders at the chosen print width using CSS `mm` units
+  with a 10 mm scale bar beneath, capped at the card width. It is honest about being approximate
+  on high-density screens in its tooltip. Small feature, very on-brand, and it makes the size
+  tiers in Basic tangible when Garrett tests on a phone held next to a printed sheet.
+
+---
+
+## 6. Phase 3: Size and download panel
+
+Same structure as Style: subheads, rows, one primary action.
+
+```
+Size and download                                   ● print safe
+──────────────────────────────────────────────────────────────────
+PRINT SIZE ────────────────────────────────────────────────────────
+Basic:   the four tier cards, unchanged in content, restyled as rows
+Advanced: Width [ 50 ] [mm ⌄]   Read from [   ] m
+          Sticker 20 · Card 30 · Flyer 50 · Poster 120 · Sign 250
+          ▸ At 50 mm each module is 1.52 mm. Safe. Reads to about 0.5 m.
+
+ENCODING (Advanced) ───────────────────────────────────────────────
+Error correction ( L | M | Q | H )   Survives 15%. The sensible default.
+Quiet zone [4]   Min version [1]   Mask [Auto ⌄]
+
+FILES ─────────────────────────────────────────────────────────────
+[        Download SVG · vector        ]   primary, accent
+[ PDF · CMYK ] [ PNG · 300 dpi ] [ EPS ]  one uniform secondary row
+Copy PNG · Print test sheet · PNG resolution 300 dpi ⌄   (text row)
+Generated on your device. Never expires. Nothing was uploaded.
+
+──────────────────────────────────────────────────────────────────
+Need to change it after printing?  [ Make it editable and trackable ]
+```
+
+- Basic keeps PNG as the primary button, Advanced keeps SVG, exactly as now; only the
+  presentation changes. The four-style 2 × 2 grid becomes one primary and one uniform row.
+- The dpi select moves out of the encoding grid and into the Files group as a small inline
+  select on the text row, because it only affects the PNG.
+- The sizing notices stay under Print size; the ECC hint sits on the ECC row's readout slot.
+- The tier cards in Basic get the `.row` alignment for the name / size / distance so the four
+  cards line up, and the "Custom" row keeps its behaviour.
+
+---
+
+## 7. Phase 4: Photo QR panel
+
+- `DropTile` for the picture, with the seven shapes beneath it as a `Swatches` group (they are
+  already tiles; they become the same tile as everywhere else).
+- Crop: the three sliders become `Slider` rows so Zoom / Across / Down align, with the reset
+  dot on each when moved. Later (not this refresh): a draggable crop box on a thumbnail.
+- Look: Dot size, Fade, Contrast as `Slider` rows in Advanced; the tone as a three-tile
+  `Swatches` group (a colour, a grey, and a black-and-white silhouette of the same tiny sample)
+  in place of the segmented control, since the choice is visual. Cut stays a slider with Paper
+  and Ink end labels; the percentage readout stays Advanced-only.
+- The two explanatory paragraphs at the bottom become one, with the second sentence in the
+  collapsed summary instead ("PNG or SVG").
+
+---
+
+## 8. Phase 5: The other pages and global polish
+
+- `/bulk`: apply `SectionHeader`, `.subhead`, `.row`, and the restyled selects and file input;
+  the three cards keep their order. The results table gets the `.prose table` treatment.
+- `/print-size`: already close; adopt `Slider` for scan distance beside the number field, and the
+  same result badge as the generator.
+- `/compare`, `/never-expires`, `/open-source`, `/privacy`: no layout change. Global polish only.
+- Global: consistent focus rings (`outline` in accent on every interactive element, not only
+  segmented buttons); disabled states at 45 % opacity everywhere; `.notice` gains a 16 px icon
+  slot; button heights unified at 40 px (`btn`) and 32 px (`btn-sm`); table rows in `/compare`
+  get a hover tint; the footer's three columns collapse to two on `sm`.
+- Print stylesheet: hide the toggle and the preview bar as well as the header and footer.
+
+---
+
+## 9. Out of scope for this refresh
+
+- Dark mode. The paper look is the brand; a dark theme is a separate decision.
+- Style presets ("Classic, Soft, Dotted, Leaf" one-click looks). Cheap to add on top of the new
+  swatches, but it is a feature, not a cleanup; list it in `plan.md` "Later" if wanted.
+- A draggable crop box for Photo QR.
+- Any change to the engine, the renderers, the goldens, the exports, or the SignUpCity hand-off.
+- New copy for the marketing pages beyond trimming ledes on phones.
+
+---
+
+## 10. Verification
+
+Automated, every phase: `bun run check`, `bun run test` (no golden updates expected; if a golden
+goes red the phase touched something it should not have), `bun run build` with the generator
+page's gzipped size noted in the commit message against the 150 KB budget.
+
+In the Browser pane, every phase: 1440 px and 375 px screenshots of Basic and Advanced with the
+Style and Photo QR panels open, checked for wrapping, alignment, and layout shift while typing
+(measure the preview card's `top` before and after a keystroke, as the notes in memory say).
+
+On hardware, at the end (Garrett): open the generator on the iPhone and an Android, confirm the
+preview bar appears when scrolling, download a PNG from the bar, and check the "actual size"
+toggle against a printed test sheet. Add a row to `docs/scan-matrix.md` only if an export path
+changed, which none should.
+
+---
+
+## 11. Order and effort
+
+| Phase | Evenings | Notes |
+|---|---|---|
+| 0 Primitives | 1 | Lands with Phase 1 in the same session; nothing visible on its own. |
+| 1 Style panel | 1 to 2 | The priority. Ship this before anything else. |
+| 2 Shell, content, phones | 1 to 2 | The preview bar is the only new behaviour. |
+| 3 Size and download | 1 | Presentation only. |
+| 4 Photo QR | 0.5 | Mostly swapping in the primitives. |
+| 5 Other pages, polish | 1 | Can be split across sessions. |
+
+Phases 0 and 1 are one pull request. Each later phase is its own, so a regression is easy to
+find. Nothing in a later phase depends on a design decision that Phase 1 does not already make.

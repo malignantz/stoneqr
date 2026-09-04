@@ -2,7 +2,7 @@
 
 *QR codes set in stone. Generated in your browser, never expire.*
 
-Status: written 2026-09-02; M1 to M8 built; the silhouette tone, built-in shapes, and `/photo` added 2026-09-03 (section 7 and milestone M9). This document is self-contained; the broader SignUpCity context lives in the private `signupcity` repo. Technical research behind the library and sizing choices is in `docs/research/qr-technical.md`.
+Status: written 2026-09-02; M1 to M8 built; the silhouette tone, built-in shapes, and `/photo` added 2026-09-03 (section 7 and milestone M9); the UI refresh planned 2026-09-04 (milestone M10, `docs/ui-refresh.md`). This document is self-contained; the broader SignUpCity context lives in the private `signupcity` repo. Technical research behind the library and sizing choices is in `docs/research/qr-technical.md`.
 
 ---
 
@@ -282,6 +282,7 @@ Effort is in evenings, assuming Claude Code does most of the typing and Garrett 
 7. **M7 Site and SEO (2 evenings):** all marketing routes with their explainers, `/compare` table with sources, `/never-expires` story, Open Graph images (static per route), Cloudflare Web Analytics, README and LICENSE, publish `@stoneqr/engine` to npm.
 8. **M8 Dynamic hand-off (1 evening, after SignUpCity's links exist):** the button, the return flow, the policy text.
 9. **M9 Silhouette and shapes (1 evening, built 2026-09-03):** the engine's threshold option and `prepareImage`, the Silhouette tone with its Cut slider in Basic, seven built-in shapes, the matching SVG filter, the `/photo` route with its card, and silhouette rows in the scan matrix.
+10. **M10 UI refresh (5 to 7 evenings, planned 2026-09-04):** shared control primitives including an in-page colour picker that replaces the operating-system colour window, the Style panel rebuilt around drawn swatches and grouped sections, section headers with collapsed summaries, a phone layout with content first and a pinned preview bar, the Size and download and Photo QR panels regrouped, then the same primitives on `/bulk` and `/print-size`. Design contract in `docs/ui-refresh.md`.
 
 Launch after M7. M8 can follow.
 
