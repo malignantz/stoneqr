@@ -9,6 +9,7 @@
 	 * did with "Soft" and "Round" in a 22 rem column.
 	 */
 	import type { Snippet } from 'svelte';
+	import { radioKeys } from './radiogroup';
 
 	let {
 		label,
@@ -42,13 +43,16 @@
 		style="grid-template-columns: repeat({columns}, minmax(0, 1fr)); max-width: {columns * 4.6}rem"
 		role="radiogroup"
 		aria-label={ariaLabel ?? label}
+		use:radioKeys
 	>
 		{#each options as o (o.id)}
+			<!-- Roving tabindex: Tab reaches the chosen tile, the arrow keys move between them. -->
 			<button
 				type="button"
 				class="swatch"
 				role="radio"
 				aria-checked={value === o.id}
+				tabindex={value === o.id ? 0 : -1}
 				data-on={value === o.id}
 				title={o.title ?? o.label}
 				{disabled}

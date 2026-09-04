@@ -1,6 +1,6 @@
 # UI refresh: cleaner, calmer, more obvious
 
-Status: planned 2026-09-04, built 2026-09-04 (phases 0 to 5). Milestone M10 in `plan.md`. What is left is on real hardware, not in the code: see §10. This is the design
+Status: planned 2026-09-04, built 2026-09-04 (phases 0 to 5), second pass the same day (§8c). Milestone M10 in `plan.md`. What is left is on real hardware, not in the code: see §10. This is the design
 contract for the refresh; the rules in `CLAUDE.md` (Basic/Advanced split, `advancedInUse`, the
 hero row, "Photo QR" naming, the bundle budget, the decode check) all stay in force.
 
@@ -443,6 +443,46 @@ Built 2026-09-04.
 
 Cost: 92.7 KB to 93.7 KB gzipped, against the 150 KB budget. Across all six phases: 85.4 KB to
 93.7 KB, an 8.3 KB increase for the whole refresh.
+
+## 8c. Second pass
+
+Audited again on 2026-09-04 after the six phases had landed, at 1280 px and 375 px, Basic and
+Advanced, plus the other pages. Nothing structural was wrong; what remained were seams between
+the two control sets, a few places where browser defaults still showed, and keyboard gaps in the
+controls that claim radio semantics.
+
+- **One set of print sizes.** The Advanced chips were Sticker 20, Card 30, Flyer 50, Poster 120,
+  Sign 250, while Basic listed 25, 50, 100, and 300. Choosing "Small" in Basic then switching
+  highlighted nothing, and "Card 30 mm" in Advanced came back to Basic as "Custom". The chips now
+  read from `SIZE_TIERS`, so a size chosen in either set is the chosen one in the other, and
+  `sizes.ts` is the only place a width is written down.
+- **Numbers stay in Advanced.** The Version / Modules / ECC / Module row under the preview, and
+  the contrast ratio in the Colours badge, showed in both sets. Basic now keeps the badge's
+  verdict ("clear" or "too low") and drops the figures; the size list already says what the
+  module size means in words. The Photo QR closing note lost its version number in Basic too.
+- **The promise line showed twice on a desktop**, under the preview and under the download
+  buttons, a column apart. It is phone-only under the preview now, where it is the first
+  reassurance after the code appears, and stays with the downloads everywhere.
+- **The download sheet stretched** to the height of the Style column beside it, leaving a quarter
+  of the card empty on a wide screen. It is `self-start` at `lg`.
+- **Drawn choices take the arrow keys.** The type tiles and every `Swatches` group carried
+  `role="radio"` without the behaviour that promises: every tile was a tab stop and the arrows
+  did nothing. `radiogroup.ts` is a small action that moves focus and the choice with the arrow
+  keys, Home, and End; the tiles carry a roving `tabindex`, so Tab lands on the chosen one.
+- **Toggles announce as switches.** The five `.toggle` inputs carry `role="switch"`, so a screen
+  reader says "on" and "off" rather than "checked".
+- **Export failures are a notice, not an alert.** The stale-chunk explanation and any other
+  export error now sit under the download buttons as a `.notice-block` with `role="alert"`,
+  in the site's own type, instead of a native dialog.
+- **The hand-off link is properly out of reach** when there is nothing to hand off: it was
+  `aria-disabled` but still followed `#` to the top of the page. It now loses pointer events,
+  its tab stop, and half its opacity.
+- **A skip link.** The first Tab press on any page offers "Skip to content", ahead of the seven
+  nav links, and `<main>` carries the id it points at.
+- **Feet beside metres** in the Advanced "reads to about" hint, through the same `formatDistance`
+  the Basic tiers use.
+
+Cost: no new chunks; the generator page's eager JavaScript moved by well under a kilobyte.
 
 ## 9. Out of scope for this refresh
 

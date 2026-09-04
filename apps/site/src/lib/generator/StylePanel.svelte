@@ -51,6 +51,12 @@
 	const ctas = ['Scan me', 'Scan to RSVP', 'Scan for menu', 'Scan to join WiFi', 'Scan to save contact', 'Scan for details'];
 
 	const contrast = $derived(design.transparentBg ? null : contrastRatio(design.fg, design.bg));
+	/** The contrast badge: a verdict in Basic, the ratio and the verdict in Advanced. */
+	const contrastLabel = $derived.by(() => {
+		if (contrast === null) return '';
+		const verdict = contrast >= 4 ? 'clear' : 'too low';
+		return advanced ? `${contrast.toFixed(1)}:1 ${verdict}` : verdict;
+	});
 	const logoPct = $derived(Math.round(design.logoAreaRatio * 100));
 	/** The whole panel is inert while a halftone picture owns the render. */
 	const off = $derived(design.halftoneActive);
@@ -144,7 +150,7 @@
 								class="badge {contrast >= 4 ? 'badge-ok' : 'badge-warn'}"
 								title="Contrast ratio, WCAG formula. Scanners read with red light, so keep it high."
 							>
-								{contrast.toFixed(1)}:1 {contrast >= 4 ? 'clear' : 'too low'}
+								{contrastLabel}
 							</span>
 						</span>
 					{/if}
@@ -157,7 +163,7 @@
 				</div>
 				{#if advanced}
 					<label class="toggle">
-						<input type="checkbox" bind:checked={design.transparentBg} />
+						<input type="checkbox" role="switch" bind:checked={design.transparentBg} />
 						Transparent background
 					</label>
 
@@ -247,7 +253,7 @@
 						format={(v) => `${v} mod`}
 					/>
 					<label class="toggle">
-						<input type="checkbox" bind:checked={design.logoKnockout} />
+						<input type="checkbox" role="switch" bind:checked={design.logoKnockout} />
 						Clear space behind the logo
 					</label>
 					<p class="hint">Error correction is set to H while a logo is present. Keep the logo under 20% of the area for print.</p>
@@ -258,7 +264,7 @@
 			<div class="grid gap-3">
 				<p class="subhead">Frame</p>
 				<label class="toggle">
-					<input type="checkbox" bind:checked={design.frameEnabled} />
+					<input type="checkbox" role="switch" bind:checked={design.frameEnabled} />
 					Call to action under the code
 				</label>
 				{#if design.frameEnabled}

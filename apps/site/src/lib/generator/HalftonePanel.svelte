@@ -118,7 +118,7 @@
 			/>
 			{#if design.halftoneImage}
 				<label class="toggle">
-					<input type="checkbox" bind:checked={design.halftone} />
+					<input type="checkbox" role="switch" bind:checked={design.halftone} />
 					Blend the picture into the code
 				</label>
 			{:else}
@@ -202,8 +202,12 @@
 		{/if}
 
 		<p class="hint">
-			Error correction is forced to H and the code is enlarged to at least version 7 so the picture shows through. Every
-			change is decoded on your device before download unlocks, and picture codes download as PNG or SVG.
+			{#if advanced}
+				Error correction is forced to H and the code is enlarged to at least version 7 so the picture shows through.
+			{:else}
+				The code is made larger and sturdier so the picture shows through.
+			{/if}
+			Picture codes download as PNG or SVG.
 			{#if !advanced}Advanced adds dot size, fade, and contrast for a photo that is hard to read in print.{/if}
 		</p>
 	</div>

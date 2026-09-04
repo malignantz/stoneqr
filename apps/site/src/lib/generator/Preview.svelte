@@ -278,7 +278,7 @@
 					class="toggle ml-auto text-xs"
 					title="Approximate: browsers work in 96 pixels to the inch, so how close this lands depends on your screen."
 				>
-					<input type="checkbox" bind:checked={actualSize} />
+					<input type="checkbox" role="switch" bind:checked={actualSize} />
 					Actual size
 				</label>
 			{/if}
@@ -302,7 +302,11 @@
 		</p>
 	{/if}
 
-	{#if design.encoded}
+	<!--
+	  The figures are Advanced only: version, module count, and ECC are the numbers Basic keeps
+	  out of sight, and the size list already says what the module size means in words.
+	-->
+	{#if design.encoded && advanced}
 		<!-- Four across, except between lg and xl where the preview column is at its narrowest and
 		     the module figure would break across two lines. -->
 		<dl class="grid grid-cols-4 gap-2 text-center lg:grid-cols-2 xl:grid-cols-4">
@@ -313,5 +317,7 @@
 		</dl>
 	{/if}
 
-	<p class="text-center text-xs text-ink-3">{SITE.promise}</p>
+	<!-- On a phone this is the first reassurance after the code appears; on a desktop the same
+	     line sits under the download buttons a column away, so it shows once. -->
+	<p class="text-center text-xs text-ink-3 lg:hidden">{SITE.promise}</p>
 </section>

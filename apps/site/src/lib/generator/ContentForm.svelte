@@ -2,6 +2,7 @@
 	import { PAYLOAD_TYPES, type PayloadType } from '@stoneqr/engine/payloads';
 	import Icon from '$lib/components/Icon.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import { radioKeys } from '$lib/components/radiogroup';
 	import type { IconName } from '$lib/icons';
 	import type { Design } from './state.svelte';
 
@@ -29,12 +30,13 @@
 
 	<div class="field">
 		<span class="label">Type</span>
-		<div class="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Content type">
+		<div class="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Content type" use:radioKeys>
 			{#each PAYLOAD_TYPES as t (t.id)}
 				<button
 					type="button"
 					role="radio"
 					aria-checked={design.type === t.id}
+					tabindex={design.type === t.id ? 0 : -1}
 					aria-label={t.label}
 					title={t.label}
 					class="type-tile"

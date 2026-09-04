@@ -16,6 +16,8 @@
 </script>
 
 <div class="flex min-h-dvh flex-col">
+	<!-- Invisible until it has focus: the first Tab press offers a way past the seven nav links. -->
+	<a href="#main" class="skip-link">Skip to content</a>
 	<header class="border-b border-rule bg-paper/80 backdrop-blur-sm">
 		<div class="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
 			<a href="/" class="display flex items-center gap-2 text-xl text-ink no-underline" aria-label="StoneQR home">
@@ -42,7 +44,7 @@
 		</div>
 	</header>
 
-	<main class="flex-1">
+	<main id="main" class="flex-1">
 		{@render children()}
 	</main>
 

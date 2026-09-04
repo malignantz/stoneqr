@@ -7,7 +7,7 @@
 	import PreviewBar from '$lib/components/PreviewBar.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { describe, type Design } from './state.svelte';
-	import { SIZE_TIERS, tierFor, tierFit, tierDistance, formatIn } from './sizes';
+	import { SIZE_TIERS, tierFor, tierFit, tierDistance, formatDistance, formatIn } from './sizes';
 
 	let { design, advanced = false }: { design: Design; advanced?: boolean } = $props();
 
@@ -39,13 +39,6 @@
 		design.status === 'print-safe' ? 'badge-ok' : design.status === 'scannable' ? 'badge-muted' : design.status === 'risky' ? 'badge-warn' : 'badge-block'
 	);
 	const eccs: Ecc[] = ['L', 'M', 'Q', 'H'];
-	const presets: { label: string; mm: number }[] = [
-		{ label: 'Sticker 20', mm: 20 },
-		{ label: 'Card 30', mm: 30 },
-		{ label: 'Flyer 50', mm: 50 },
-		{ label: 'Poster 120', mm: 120 },
-		{ label: 'Sign 250', mm: 250 }
-	];
 
 	const halftoneOnly = 'Photo QR downloads as PNG or SVG';
 	const HALFTONE_MAX_SIDE = 4096;
@@ -69,6 +62,8 @@
 
 	let busy = $state('');
 	let copied = $state(false);
+	/** Why the last export failed, shown under the buttons rather than in a browser alert. */
+	let exportError = $state('');
 	/** Live label for the PNG button while a halftone export renders off the main thread. */
 	let pngProgress = $state('');
 
@@ -85,16 +80,13 @@
 
 	async function run(label: string, fn: () => Promise<void>) {
 		busy = label;
+		exportError = '';
 		try {
 			await fn();
 		} catch (e) {
-			if (isStaleChunk(e)) {
-				alert(
-					'StoneQR was updated while this page was open, so the part that makes this file is no longer on the server. Reload the page and download again. Nothing you typed is saved, so you will need to set the code up once more.'
-				);
-			} else {
-				alert(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
-			}
+			exportError = isStaleChunk(e)
+				? 'StoneQR was updated while this page was open, so the part that makes this file is no longer on the server. Reload the page and download again. Nothing you typed is saved, so you will need to set the code up once more.'
+				: `The file could not be made: ${e instanceof Error ? e.message : String(e)}`;
 		} finally {
 			busy = '';
 			pngProgress = '';
@@ -238,10 +230,11 @@
 					</select>
 				</div>
 			</div>
+			<!-- The same four widths Basic lists, so a size picked in one set is still the chosen one in the other. -->
 			<div class="flex flex-wrap gap-1.5">
-				{#each presets as p (p.mm)}
-					<button type="button" class="chip" data-on={design.unit === 'mm' && design.width === p.mm} onclick={() => pickTier(p.mm)}>
-						{p.label} mm
+				{#each SIZE_TIERS as t (t.id)}
+					<button type="button" class="chip" data-on={tier?.id === t.id} onclick={() => pickTier(t.mm)}>
+						{t.name} {t.mm} mm
 					</button>
 				{/each}
 			</div>
@@ -329,7 +322,7 @@
 				<p class="hint">
 					For {design.scanDistanceM} m, print at least
 					<strong class="num">{formatMm(fromMm(minWidthMmForDistance(design.scanDistanceM), design.unit))} {design.unit}</strong>. At
-					the current size it reads to about <span class="num">{maxScanDistanceM(design.widthMm).toFixed(1)} m</span>.
+					the current size it reads to about <span class="num">{formatDistance(maxScanDistanceM(design.widthMm))}</span>.
 				</p>
 			{/if}
 		{/if}
@@ -489,6 +482,12 @@
 				{#if design.verify === 'checking'}Checking that the code decodes…{:else if design.verify === 'fail'}Downloads unlock once the code decodes on your device.{:else if !design.widthValid}Enter a print width to download.{:else if design.logoBlocked}Shrink the logo below 25% of the area to download.{:else}Fix the blocking issue above to download.{/if}
 			</p>
 		{/if}
+		{#if exportError}
+			<p class="notice notice-block" role="alert">
+				<Icon name="warning" size={15} />
+				<span>{exportError}</span>
+			</p>
+		{/if}
 		<p class="text-center text-xs text-ink-3">{SITE.promise}</p>
 	</div>
 
@@ -496,7 +495,13 @@
 
 	<div class="grid gap-2">
 		<p class="ticket">Need to change it after printing?</p>
-		<a href={design.payload ? dynamicHref : '#'} class="btn btn-secondary" aria-disabled={!design.payload} rel="noopener">
+		<a
+			href={design.payload ? dynamicHref : '#'}
+			class="btn btn-secondary aria-disabled:pointer-events-none aria-disabled:opacity-45"
+			aria-disabled={!design.payload}
+			tabindex={design.payload ? undefined : -1}
+			rel="noopener"
+		>
 			Make it editable and trackable
 		</a>
 		<p class="hint">

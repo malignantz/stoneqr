@@ -119,7 +119,8 @@
 	<div class="order-2 lg:order-2 lg:sticky lg:top-6 lg:self-start">
 		<Preview {design} {advanced} />
 	</div>
-	<div class="sheet order-4 p-5 lg:order-3 lg:p-6">
+	<!-- self-start: the sheet hugs its content instead of stretching to the height of the Style column beside it. -->
+	<div class="sheet order-4 p-5 lg:order-3 lg:self-start lg:p-6">
 		<ExportPanel {design} {advanced} />
 	</div>
 </div>
