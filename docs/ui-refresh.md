@@ -528,6 +528,42 @@ against `imagePlacement` case by case), so what it frames is exactly what the co
 no second model of the crop exists. The Zoom slider stays in both control sets; the Across and
 Down sliders moved to Advanced, since the box says the same thing in a picture.
 
+## 8f. Presets by name, corner colour, saved designs, and share links
+
+Added 2026-09-05. Four small things from a review of the shipped generator.
+
+- **"Preset" instead of "Look".** The tiles are what people call presets, so the row and its
+  group name say Preset. Code, docs, and the `Design.look` accessor keep the word look; nothing
+  else changed.
+- **A colour for the corners.** The Colours group is now Code, Background, and Corners. Corners
+  follows the code colour until a colour is picked ("Same as code" in the label row becomes a
+  "Match code" link that puts it back), stored as `Design.cornerColor`, null when following.
+  The styled renderer gives the three finder patterns that colour, solid, in place of the
+  gradient; the plain renderer never sees it because a corner colour counts as a styled
+  request. Sizing, the contrast badge, and the red-light warning all look at
+  `Design.weakestFg`, whichever of the two colours reads worst against the background, since a
+  scanner that cannot find the corners never reaches the data. "Ink" and "Paper" survive in
+  prose and on `/bulk`, where they are still the print words.
+- **The design is saved as you go.** `lib/generator/persist.ts` keeps every field a person set
+  (`PERSISTED`) in localStorage under `stoneqr.design`, written 300 ms after the last change,
+  and the two pictures in IndexedDB (`stoneqr` / `images`) so a large photo cannot overflow the
+  5 MB text quota and take the rest with it. The record is read synchronously at module scope in
+  `Generator.svelte`, before the first render, the same way the control set is, so the restored
+  code is the first thing painted; the pictures arrive a moment later. On the first mount of a
+  page load the home page keeps the saved content type; a landing page or a nav click still sets
+  its own. `apply` takes only values of the right shape, so an old record or a hand-edited one
+  cannot put a string where a number goes. "Start over" beside the Basic/Advanced toggle asks
+  twice, then restores the defaults and clears both stores.
+- **Share links.** "Copy a link to this design" in Size and download writes the same record,
+  with defaults left out, as `#1.` plus deflated (`CompressionStream`, `deflate-raw`) base64url
+  JSON; browsers without it get `#0.` plain base64url. A fragment is never sent to the server,
+  so the promise under the buttons holds, and the hint says what the link does carry: every
+  setting and everything typed, a WiFi password included, but no pictures. On load a design
+  fragment wins over the saved design, drops the saved pictures rather than attaching them to
+  someone else's design, and is then removed from the address bar with `replaceState` so the
+  URL does not go on describing a design that has since been edited. Only a full page load
+  reads it; a same-document hash change does not.
+
 ## 9. Out of scope for this refresh
 
 - Dark mode. The paper look is the brand; a dark theme is a separate decision.

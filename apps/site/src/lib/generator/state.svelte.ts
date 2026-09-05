@@ -8,6 +8,7 @@ import {
 	renderSvg,
 	THRESHOLD_DEFAULT,
 	assess,
+	contrastRatio,
 	summary,
 	moduleMm,
 	toMm,
@@ -103,6 +104,12 @@ export class Design {
 	// Style
 	fg = $state('#000000');
 	bg = $state('#ffffff');
+	/**
+	 * The three finder patterns' colour, or null to follow the code colour. Kept as an override
+	 * rather than a copy so changing the code colour still moves the corners until someone
+	 * deliberately picks a colour for them.
+	 */
+	cornerColor = $state<string | null>(null);
 	transparentBg = $state(false);
 	dot = $state<DotStyle>('square');
 	cornerSquare = $state<CornerSquareStyle>('square');
@@ -181,6 +188,24 @@ export class Design {
 		this.cornerDot = l.cornerDot;
 	}
 
+	/** The corners' effective colour: the override, else the code colour. Bindable from a colour field. */
+	get cornerFg(): string {
+		return this.cornerColor ?? this.fg;
+	}
+	set cornerFg(c: string) {
+		this.cornerColor = c;
+	}
+
+	/**
+	 * Whichever of the code colour and the corner colour reads worst against the background.
+	 * Sizing and contrast checks look at this one, because a scanner that cannot find the
+	 * finder patterns never gets as far as the data.
+	 */
+	weakestFg = $derived.by((): string => {
+		if (!this.cornerColor || this.transparentBg) return this.fg;
+		return contrastRatio(this.cornerColor, this.bg) < contrastRatio(this.fg, this.bg) ? this.cornerColor : this.fg;
+	});
+
 	/** Effective ECC: forced to H whenever a logo or a halftone picture is present. */
 	ecc = $derived<Ecc>(this.logo || this.halftoneActive ? 'H' : this.eccChoice);
 	bgColor = $derived(this.transparentBg ? 'transparent' : this.bg);
@@ -199,6 +224,7 @@ export class Design {
 		this.dot !== 'square' ||
 			this.cornerSquare !== 'square' ||
 			this.cornerDot !== 'square' ||
+			this.cornerColor !== null ||
 			this.gradient !== 'none' ||
 			!!this.logo ||
 			this.frameEnabled
@@ -277,7 +303,7 @@ export class Design {
 						widthMm: this.widthMm,
 						size: this.encoded.size,
 						quiet: this.quietZone,
-						fg: this.fg,
+						fg: this.weakestFg,
 						bg: this.bgColor,
 						logoAreaRatio: this.logoAreaRatio,
 						ecc: this.ecc,
@@ -294,7 +320,7 @@ export class Design {
 					widthMm: this.widthMm,
 					size: this.encoded.size,
 					quiet: this.quietZone,
-					fg: this.fg,
+					fg: this.weakestFg,
 					bg: this.bgColor,
 					logoAreaRatio: this.logoAreaRatio,
 					ecc: this.ecc,

@@ -1,6 +1,7 @@
 <script module lang="ts">
 	import { browser } from '$app/environment';
 	import { Design } from './state.svelte';
+	import { apply, readSaved, readImage, type ImageKey } from './persist';
 
 	// One design per browser session. The landing pages (/wifi, /vcard, /event, /logo, /photo)
 	// mount this same component, so keeping the state here means a nav click only changes the
@@ -13,6 +14,14 @@
 	// preview would sit on "Rendering…" until a full page load. Module scope has no owning effect.
 	// Prerendering gets a fresh instance per page instead, so no state leaks between routes at build time.
 	const shared = browser ? new Design() : undefined;
+	// The saved design comes back before the first render, the same way the control set does,
+	// so the restored code is the first thing painted rather than a default that then changes.
+	const restored = shared ? apply(shared, readSaved()) : false;
+	let firstMount = true;
+	/** The pictures are restored once per page load, not on every client-side navigation. */
+	let imagesRestored = false;
+	/** What is in IndexedDB now, so a restore does not write the picture straight back. */
+	const stored: Record<ImageKey, string | undefined> = { logo: undefined, halftone: undefined };
 </script>
 
 <script lang="ts">
@@ -20,6 +29,8 @@
 	import { page } from '$app/state';
 	import type { PayloadType } from '@stoneqr/engine/payloads';
 	import Icon from '$lib/components/Icon.svelte';
+	import { snapshot, writeSaved, writeImage, clearSaved, clearImages, decodeHash, isDesignHash } from './persist';
+	import { defaults } from './defaults';
 	import ContentForm from './ContentForm.svelte';
 	import Preview from './Preview.svelte';
 	import StylePanel from './StylePanel.svelte';
@@ -34,7 +45,10 @@
 	}: { preset?: PayloadType; styleOpen?: boolean; photoOpen?: boolean; hero?: Snippet } = $props();
 
 	const design = shared ?? new Design();
-	design.type = untrack(() => preset);
+	// The home page keeps the saved type on the first visit of a page load; a landing page, or
+	// any later navigation, preselects its own.
+	if (!(firstMount && restored && untrack(() => preset) === 'url')) design.type = untrack(() => preset);
+	firstMount = false;
 
 	// Basic shows the controls most people need; Advanced shows everything. Remembered per browser.
 	//
@@ -71,7 +85,74 @@
 			design.shortUrl = short;
 			history.replaceState(null, '', page.url.pathname);
 		}
+		if (!imagesRestored) {
+			imagesRestored = true;
+			void restoreImagesOrLink();
+		}
 	});
+
+	/**
+	 * A share link in the fragment wins over the saved design: that is what opening it means. It
+	 * carries no pictures, so the ones saved here are dropped rather than attached to someone
+	 * else's design. Otherwise the saved pictures come back from IndexedDB. The fragment is then
+	 * removed so the address bar does not keep describing a design that has since been edited.
+	 */
+	async function restoreImagesOrLink() {
+		const hash = location.hash;
+		if (isDesignHash(hash)) {
+			const saved = await decodeHash(hash);
+			if (saved && apply(design, saved)) {
+				design.logo = undefined;
+				design.logoName = '';
+				design.halftoneImage = undefined;
+				design.halftoneImageName = '';
+				history.replaceState(null, '', location.pathname + location.search);
+				return;
+			}
+		}
+		const [logo, halftone] = await Promise.all([readImage('logo'), readImage('halftone')]);
+		stored.logo = logo;
+		stored.halftone = halftone;
+		if (logo && !design.logo) design.logo = logo;
+		if (halftone && !design.halftoneImage) design.halftoneImage = halftone;
+	}
+
+	// Save as you go. Reading the snapshot inside the effect tracks every persisted field; the
+	// short wait folds a slider drag into one write.
+	$effect(() => {
+		const s = snapshot(design);
+		const t = setTimeout(() => writeSaved(s), 300);
+		return () => clearTimeout(t);
+	});
+	$effect(() => keepImage('logo', design.logo));
+	$effect(() => keepImage('halftone', design.halftoneImage));
+	function keepImage(key: ImageKey, dataUrl: string | undefined) {
+		if (stored[key] === dataUrl) return;
+		stored[key] = dataUrl;
+		void writeImage(key, dataUrl);
+	}
+
+	// "Start over" asks twice, because it takes the saved design with it.
+	let confirmReset = $state(false);
+	let confirmTimer: ReturnType<typeof setTimeout> | undefined;
+	function startOver() {
+		if (!confirmReset) {
+			confirmReset = true;
+			clearTimeout(confirmTimer);
+			confirmTimer = setTimeout(() => (confirmReset = false), 4000);
+			return;
+		}
+		confirmReset = false;
+		clearTimeout(confirmTimer);
+		apply(design, defaults());
+		design.type = preset;
+		design.logo = undefined;
+		design.logoName = '';
+		design.halftoneImage = undefined;
+		design.halftoneImageName = '';
+		clearSaved();
+		void clearImages();
+	}
 
 	const inUse = $derived(design.advancedInUse);
 </script>
@@ -84,6 +165,9 @@
 	<div class="flex flex-col items-start gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-x-8">
 		<div class="w-full min-w-0 lg:flex-1">{@render hero?.()}</div>
 		<div class="flex shrink-0 items-center gap-3 lg:pb-1">
+			<button type="button" class="text-sm text-ink-3 underline hover:text-ink {confirmReset ? 'text-block' : ''}" onclick={startOver}>
+				{confirmReset ? 'Clear everything?' : 'Start over'}
+			</button>
 			<span class="ticket">Show</span>
 			<div class="seg" role="group" aria-label="Control set">
 				<button type="button" aria-pressed={!advanced} onclick={() => setMode(false)}>Basic</button>

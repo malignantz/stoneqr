@@ -56,7 +56,8 @@
 	const looks: readonly { id: LookId | 'custom'; label: string }[] = LOOKS;
 	const ctas = ['Scan me', 'Scan to RSVP', 'Scan for menu', 'Scan to join WiFi', 'Scan to save contact', 'Scan for details'];
 
-	const contrast = $derived(design.transparentBg ? null : contrastRatio(design.fg, design.bg));
+	/** The weaker of the code and corner contrasts: the corners are what a scanner finds first. */
+	const contrast = $derived(design.transparentBg ? null : contrastRatio(design.weakestFg, design.bg));
 	/** The contrast badge: a verdict in Basic, the ratio and the verdict in Advanced. */
 	const contrastLabel = $derived.by(() => {
 		if (contrast === null) return '';
@@ -69,8 +70,8 @@
 
 	/** The other colours in this design, offered in every picker's swatch row. */
 	const related = $derived(
-		[design.fg, design.bg, design.gradientTo, design.frameColor, design.frameTextColor].filter(
-			(c) => typeof c === 'string' && c.startsWith('#')
+		[design.fg, design.cornerColor, design.bg, design.gradientTo, design.frameColor, design.frameTextColor].filter(
+			(c): c is string => typeof c === 'string' && c.startsWith('#')
 		)
 	);
 
@@ -91,7 +92,7 @@
 			if (design.cornerSquare !== 'square' || design.cornerDot !== 'square') parts.push('Corners');
 		}
 		if (design.gradient !== 'none') parts.push('Gradient');
-		if (design.fg !== '#000000' || (design.bg !== '#ffffff' && !design.transparentBg)) parts.push('Colour');
+		if (design.fg !== '#000000' || design.cornerColor !== null || (design.bg !== '#ffffff' && !design.transparentBg)) parts.push('Colour');
 		if (design.transparentBg) parts.push('Transparent');
 		if (design.logo) parts.push('Logo');
 		if (design.frameEnabled) parts.push('Frame');
@@ -169,8 +170,18 @@
 				<!-- Side by side except in the lg band, where the column is ~306 px and a "#000000"
 				     field loses its last character. -->
 				<div class="grid grid-cols-2 gap-3 lg:grid-cols-1 xl:grid-cols-2">
-					<ColourField label="Ink" bind:value={design.fg} {related} />
-					<ColourField label="Paper" bind:value={design.bg} disabled={design.transparentBg} {related} />
+					<ColourField label="Code" bind:value={design.fg} {related} />
+					<ColourField label="Background" bind:value={design.bg} disabled={design.transparentBg} {related} />
+					<!-- The corners follow the code colour until one is chosen; the link puts them back. -->
+					<ColourField label="Corners" bind:value={design.cornerFg} {related}>
+						{#snippet end()}
+							{#if design.cornerColor !== null}
+								<button type="button" class="text-xs text-ink-3 underline hover:text-ink" onclick={() => (design.cornerColor = null)}>Match code</button>
+							{:else}
+								<span class="text-xs text-ink-3">Same as code</span>
+							{/if}
+						{/snippet}
+					</ColourField>
 				</div>
 				{#if advanced}
 					<label class="toggle">
@@ -202,7 +213,7 @@
 									</div>
 								{/if}
 							</div>
-							<p class="hint">Gradients print as RGB. Keep both ends dark so every module keeps contrast with the paper.</p>
+							<p class="hint">Gradients print as RGB. Keep both ends dark so every module keeps contrast with the background.</p>
 						{/if}
 					</div>
 				{/if}
@@ -211,9 +222,9 @@
 			<!-- Shape -->
 			<div class="grid gap-3">
 				<p class="subhead">Shape</p>
-				<!-- One tile sets all three shapes; Advanced can then adjust each below, and a hand-made
-				     combination leaves no look selected. -->
-				<Swatches label="Look" options={looks} bind:value={design.look} columns={5} ariaLabel="Look">
+				<!-- One preset tile sets all three shapes; Advanced can then adjust each below, and a
+				     hand-made combination leaves no tile selected. (Code and docs call a preset a "look".) -->
+				<Swatches label="Preset" options={looks} bind:value={design.look} columns={5} ariaLabel="Preset">
 					{#snippet draw(id)}{#if id !== 'custom'}<QrArt kind="look" style={id} />{/if}{/snippet}
 				</Swatches>
 				{#if advanced}

@@ -7,6 +7,8 @@
 	import PreviewBar from '$lib/components/PreviewBar.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { describe, type Design } from './state.svelte';
+	import { snapshot, compact, encodeHash } from './persist';
+	import { defaults } from './defaults';
 	import { SIZE_TIERS, tierFor, tierFit, tierDistance, formatDistance, formatIn } from './sizes';
 
 	let { design, advanced = false }: { design: Design; advanced?: boolean } = $props();
@@ -85,7 +87,7 @@
 			await fn();
 		} catch (e) {
 			exportError = isStaleChunk(e)
-				? 'StoneQR was updated while this page was open, so the part that makes this file is no longer on the server. Reload the page and download again. Nothing you typed is saved, so you will need to set the code up once more.'
+				? 'StoneQR was updated while this page was open, so the part that makes this file is no longer on the server. Reload the page and download again. Your design is kept, so it will be where you left it.'
 				: `The file could not be made: ${e instanceof Error ? e.message : String(e)}`;
 		} finally {
 			busy = '';
@@ -182,6 +184,27 @@
 				);
 			}
 		});
+
+	/**
+	 * The share link: the design's settings and typed content, deflated into the URL fragment. A
+	 * fragment never reaches a server, so the promise under the buttons holds; what it does reach
+	 * is whoever the link is sent to, which the hint says plainly.
+	 */
+	let shareLink = $state('');
+	let shareCopied = $state(false);
+	const share = () =>
+		run('share', async () => {
+			const hash = await encodeHash(compact(snapshot(design), defaults()));
+			shareLink = `${location.origin}/${hash}`;
+			try {
+				await navigator.clipboard.writeText(shareLink);
+				shareCopied = true;
+				setTimeout(() => (shareCopied = false), 1600);
+			} catch {
+				/* no clipboard access: the link is shown below to copy by hand */
+			}
+		});
+	const hasPictures = $derived(!!design.logo || !!design.halftoneImage);
 
 	const copy = () =>
 		run('copy', async () => {
@@ -489,6 +512,21 @@
 			</p>
 		{/if}
 		<p class="text-center text-xs text-ink-3">{SITE.promise}</p>
+	</div>
+
+	<hr class="rule" />
+
+	<div class="grid gap-2">
+		<p class="ticket">Share this design</p>
+		<button type="button" class="btn btn-secondary btn-sm" disabled={busy === 'share'} onclick={share}>
+			{shareCopied ? 'Link copied' : 'Copy a link to this design'}
+		</button>
+		{#if shareLink}
+			<input class="input num text-xs" type="text" readonly aria-label="Share link" value={shareLink} onfocus={(e) => e.currentTarget.select()} />
+		{/if}
+		<p class="hint">
+			Opens StoneQR with these settings and this content, including anything typed here{design.type === 'wifi' ? ', the WiFi password too' : ''}. The link is not sent to StoneQR; it lives only with whoever you give it to.{#if hasPictures}{' '}Pictures are not included; send them separately.{/if}
+		</p>
 	</div>
 
 	<hr class="rule" />

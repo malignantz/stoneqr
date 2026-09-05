@@ -21,6 +21,8 @@ export interface StyleOptions {
 	quietZone: number;
 	fg: string;
 	bg: string; // '#rrggbb' or 'transparent'
+	/** Colour for the three finder patterns; they take `fg` and its gradient when unset. */
+	cornerColor?: string;
 	dot: DotStyle;
 	cornerSquare: CornerSquareStyle;
 	cornerDot: CornerDotStyle;
@@ -93,8 +95,9 @@ export async function renderStyled(opts: StyleOptions, widthMm: number): Promise
 			errorCorrectionLevel: ECC_MAP[opts.ecc] as never
 		},
 		dotsOptions: { type: DOT_MAP[opts.dot] as never, color: opts.fg, gradient: gradient as never },
-		cornersSquareOptions: { type: opts.cornerSquare as never, color: opts.fg, gradient: gradient as never },
-		cornersDotOptions: { type: opts.cornerDot as never, color: opts.fg, gradient: gradient as never },
+		// A chosen corner colour is solid: it stands in for the gradient on the finder patterns.
+		cornersSquareOptions: { type: opts.cornerSquare as never, color: opts.cornerColor ?? opts.fg, gradient: (opts.cornerColor ? undefined : gradient) as never },
+		cornersDotOptions: { type: opts.cornerDot as never, color: opts.cornerColor ?? opts.fg, gradient: (opts.cornerColor ? undefined : gradient) as never },
 		// The library's only quiet-zone control is backgroundOptions.margin, so a transparent
 		// background keeps the margin and makes the fill invisible instead of disabling the block.
 		backgroundOptions: { color: opts.bg === 'transparent' ? 'rgba(0,0,0,0)' : opts.bg, margin: opts.quietZone },

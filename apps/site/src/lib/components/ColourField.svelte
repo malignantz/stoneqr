@@ -5,6 +5,7 @@
 	 * a separate window that floats away from the control and stays open while you click
 	 * elsewhere. There is no <input type=color> anywhere on the site.
 	 */
+	import type { Snippet } from 'svelte';
 	import { normaliseHex } from '$lib/colour';
 	import ColourPopover from './ColourPopover.svelte';
 
@@ -15,13 +16,16 @@
 		/** Other colours in the current design, offered in the picker's swatch row. */
 		related = [],
 		/** Compact form: swatch only, no hex field, for the frame's two colours. */
-		compact = false
+		compact = false,
+		/** A small note or action at the end of the label row, such as "Same as code". */
+		end
 	}: {
 		label: string;
 		value: string;
 		disabled?: boolean;
 		related?: string[];
 		compact?: boolean;
+		end?: Snippet;
 	} = $props();
 
 	let swatch = $state<HTMLButtonElement>();
@@ -37,7 +41,11 @@
 </script>
 
 <div class="field">
-	<span class="label">{label}</span>
+	{#if end}
+		<span class="label flex items-baseline justify-between gap-2">{label}<span class="font-sans tracking-normal normal-case">{@render end()}</span></span>
+	{:else}
+		<span class="label">{label}</span>
+	{/if}
 	<div class="flex items-center gap-2">
 		<button
 			bind:this={swatch}

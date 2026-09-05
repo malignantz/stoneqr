@@ -18,7 +18,11 @@
 			system, and no database. Downloads are produced on your device. If you choose the optional
 			"make it editable" hand-off, you are taken to SignUpCity, a separate product with its own
 			<a href="https://signupcity.app/privacy" rel="noopener">privacy policy</a>; StoneQR passes the
-			destination in the link you click and keeps no copy.
+			destination in the link you click and keeps no copy. Your current design is kept in your own
+			browser's storage so it is still there when you come back; "Start over" above the generator
+			clears it, and so does clearing site data. A "Copy a link to this design" link carries the
+			settings and content in the part of the address after the #, which browsers never send to a
+			server, so it reaches only the people you give it to.
 		</p>
 		<p>
 			The only measurement is Cloudflare Web Analytics, which counts page views without cookies and

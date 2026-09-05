@@ -123,6 +123,7 @@
 			quietZone: design.quietZone,
 			fg: design.fg,
 			bg: design.bgColor,
+			cornerColor: design.cornerColor ?? undefined,
 			dot: design.dot,
 			cornerSquare: design.cornerSquare,
 			cornerDot: design.cornerDot,
