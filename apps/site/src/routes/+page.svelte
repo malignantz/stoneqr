@@ -1,10 +1,14 @@
 <script lang="ts">
 	import Seo from '$lib/components/Seo.svelte';
+	import { APP_SCHEMA } from '$lib/schema';
 	import Generator from '$lib/generator/Generator.svelte';
 	import { SITE } from '$lib/site';
 </script>
 
-<Seo title={SITE.name} description="Free QR code generator with no sign-up and no expiry. Codes are generated in your browser and never uploaded. Vector SVG, PDF, and EPS exports, print-size calculator, logos, Photo QR codes, and decode verification." />
+<Seo
+	title={SITE.name}
+	schema={[APP_SCHEMA]}
+	description="Free QR code generator with no sign-up and no expiry. Codes are generated in your browser and never uploaded. Vector SVG, PDF, and EPS exports, print-size calculator, logos, Photo QR codes, and decode verification." />
 
 <Generator>
 	{#snippet hero()}

@@ -1,0 +1,25 @@
+name: Bug report
+description: Something on stoneqr.app or in @stoneqr/engine did the wrong thing.
+labels: [bug]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Page or engine function
+      placeholder: /photo, or renderSvg
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did and what happened
+      description: Do not paste WiFi passwords or contact details; a stand-in value is fine.
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Safari 18 on macOS, Chrome 131 on Android
+    validations:
+      required: true

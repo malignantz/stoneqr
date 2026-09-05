@@ -1,0 +1,49 @@
+name: Scan report
+description: A real-phone result for the scan matrix (docs/scan-matrix.md). Good or bad, both help.
+title: "Scan: <phone> / <app> / <format> at <size>"
+labels: [scan-matrix]
+body:
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and OS version
+      placeholder: iPhone 15, iOS 18.6
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: Scanner app
+      placeholder: Camera app, Google Lens, a bank app
+    validations:
+      required: true
+  - type: dropdown
+    id: format
+    attributes:
+      label: Export format
+      options: [PNG, SVG, PDF, EPS, Photo QR PNG, Photo QR SVG, Label sheet PDF, Test sheet PDF]
+    validations:
+      required: true
+  - type: input
+    id: size
+    attributes:
+      label: Printed width and printer
+      placeholder: 20 mm, home inkjet on plain paper
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options: ["Scanned first try", "Scanned after moving or changing the light", "Did not scan"]
+    validations:
+      required: true
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings that were not default
+      placeholder: Look, colours, logo size, Photo QR tone and dot size, error correction
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else

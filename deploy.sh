@@ -20,6 +20,9 @@ DIST="apps/site/build"
 echo "→ Running engine tests"
 bun run --cwd packages/engine test
 
+echo "→ Refreshing sitemap lastmod dates from git"
+bun run scripts/sitemap.mjs > /dev/null
+
 echo "→ Building site"
 bun run --cwd apps/site build
 

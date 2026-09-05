@@ -4,7 +4,14 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="theme-color" content="#f4f0e8" />
+		<!-- Icons drawn by `bun run icons` from the same design as favicon.svg. The ICO carries 16, 32, and 48 px
+		     (Google Search reads the 48); modern browsers take the SVG; iOS takes the touch icon. -->
+		<link rel="icon" href="%sveltekit.assets%/favicon.ico" sizes="48x48" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
+		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+		<meta name="application-name" content="StoneQR" />
+		<meta name="apple-mobile-web-app-title" content="StoneQR" />
 		<!--
 		  The prerendered generator is the Basic control set. Someone who saved Advanced would see
 		  Basic paint, then swap once the JavaScript ran. This stamps the saved choice on <html>

@@ -1,5 +1,7 @@
 # StoneQR
 
+[![CI](https://github.com/malignantz/stoneqr/actions/workflows/ci.yml/badge.svg)](https://github.com/malignantz/stoneqr/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-1f6f63.svg)](LICENSE)
+
 **QR codes set in stone. Generated in your browser, never expire.**
 
 A free, open-source (MIT) QR code generator that runs entirely in the browser. Static codes never touch a server, so they cannot expire or be deactivated. Built for people who print: error-correction control, a print-size and scan-distance calculator, vector exports with real millimetre dimensions, logos with a coverage cap, a call-to-action frame, Photo QR, a halftone mode that blends a photo into the code (with a draggable crop box), and a decode check before every download. The generator has a Basic control set for the common case and an Advanced one for everything else. Basic sizes are four plain-language tiers (business card, menu, poster, storefront sign) whose reading distances come from the same 10:1 rule as the calculator; Advanced takes exact widths, units, and scan distances.
@@ -22,6 +24,8 @@ bun install
 bun run dev        # site at http://localhost:5173
 bun run test       # unit tests (vitest): engine, then the site's pure modules
 bun run og         # redraw the per-route Open Graph cards (opens a local page)
+bun run icons      # redraw favicon.ico, apple-touch-icon.png, and the manifest icons
+bun run sitemap    # rewrite sitemap.xml with lastmod dates from git (deploy.sh does this too)
 bun run check      # svelte-check
 bun run build      # static output in apps/site/build
 ./deploy.sh        # build + wrangler pages deploy
@@ -47,6 +51,10 @@ Subpaths: `./payloads`, `./sizing`, `./render/halftone` (picture-over-matrix ren
 ## Privacy promise
 
 Nothing a user types leaves the browser in static mode. There is no server-side payload handling and never will be. See [`/privacy`](https://stoneqr.app/privacy) and [`/open-source`](https://stoneqr.app/open-source).
+
+## Contributing
+
+The most useful contribution is a real-phone scan report for `docs/scan-matrix.md`: open a [scan report](https://github.com/malignantz/stoneqr/issues/new?template=scan-report.yml). Code contributions: see `CONTRIBUTING.md`; security reports: see `SECURITY.md`.
 
 ## License
 

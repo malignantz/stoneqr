@@ -22,8 +22,18 @@
 		</p>
 		<p>
 			The only measurement is Cloudflare Web Analytics, which counts page views without cookies and
-			without reading page content. When you generate a code, the site records a single anonymous
-			"generated" event with no payload data, so we can say how many codes were made. That is all.
+			without reading page content. It cannot see what you type, what you upload, or what you
+			download. That is all.
+		</p>
+	</div>
+
+	<h2 class="mt-12">And one on terms</h2>
+	<div class="prose mt-4 text-lg">
+		<p>
+			StoneQR is free to use for anything, personal or commercial, and its code is published under
+			the <a href="/open-source">MIT licence</a>. It is offered as is, without warranty. Every
+			download passes a decode check on your device, but printing, scanning apps, and ink are
+			outside our control, so scan a proof with a phone before you order a thousand of anything.
 		</p>
 	</div>
 </article>
