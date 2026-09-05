@@ -29,7 +29,7 @@
 	import { page } from '$app/state';
 	import type { PayloadType } from '@stoneqr/engine/payloads';
 	import Icon from '$lib/components/Icon.svelte';
-	import { snapshot, writeSaved, writeImage, clearSaved, clearImages, decodeHash, isDesignHash } from './persist';
+	import { snapshot, compact, writeSaved, writeImage, clearSaved, clearImages, decodeHash, isDesignHash } from './persist';
 	import { defaults } from './defaults';
 	import ContentForm from './ContentForm.svelte';
 	import Preview from './Preview.svelte';
@@ -132,18 +132,11 @@
 		void writeImage(key, dataUrl);
 	}
 
-	// "Start over" asks twice, because it takes the saved design with it.
-	let confirmReset = $state(false);
-	let confirmTimer: ReturnType<typeof setTimeout> | undefined;
+	/** Nothing set and nothing typed: the "Start over" control has nothing to do and stays hidden. */
+	const pristine = $derived(
+		!design.logo && !design.halftoneImage && Object.keys(compact(snapshot(design), defaults())).length === 1
+	);
 	function startOver() {
-		if (!confirmReset) {
-			confirmReset = true;
-			clearTimeout(confirmTimer);
-			confirmTimer = setTimeout(() => (confirmReset = false), 4000);
-			return;
-		}
-		confirmReset = false;
-		clearTimeout(confirmTimer);
 		apply(design, defaults());
 		design.type = preset;
 		design.logo = undefined;
@@ -165,9 +158,6 @@
 	<div class="flex flex-col items-start gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-x-8">
 		<div class="w-full min-w-0 lg:flex-1">{@render hero?.()}</div>
 		<div class="flex shrink-0 items-center gap-3 lg:pb-1">
-			<button type="button" class="text-sm text-ink-3 underline hover:text-ink {confirmReset ? 'text-block' : ''}" onclick={startOver}>
-				{confirmReset ? 'Clear everything?' : 'Start over'}
-			</button>
 			<span class="ticket">Show</span>
 			<div class="seg" role="group" aria-label="Control set">
 				<button type="button" aria-pressed={!advanced} onclick={() => setMode(false)}>Basic</button>
@@ -203,7 +193,7 @@
 >
 	<div class="contents lg:order-1 lg:block lg:space-y-6">
 		<div class="sheet order-1 p-5 lg:p-6">
-			<ContentForm {design} />
+			<ContentForm {design} {pristine} onstartover={startOver} />
 		</div>
 		<div class="sheet order-3 p-5 lg:p-6">
 			<StylePanel {design} open={styleOpen} {advanced} />

@@ -6,7 +6,25 @@
 	import type { IconName } from '$lib/icons';
 	import type { Design } from './state.svelte';
 
-	let { design }: { design: Design } = $props();
+	let {
+		design,
+		pristine = true,
+		onstartover
+	}: { design: Design; pristine?: boolean; onstartover?: () => void } = $props();
+
+	let confirmReset = $state(false);
+	let confirmTimer: ReturnType<typeof setTimeout> | undefined;
+	function startOver() {
+		if (!confirmReset) {
+			confirmReset = true;
+			clearTimeout(confirmTimer);
+			confirmTimer = setTimeout(() => (confirmReset = false), 4000);
+			return;
+		}
+		confirmReset = false;
+		clearTimeout(confirmTimer);
+		onstartover?.();
+	}
 
 	const meta = $derived(PAYLOAD_TYPES.find((t) => t.id === design.type)!);
 	const contactTypes: PayloadType[] = ['vcard', 'mecard'];
@@ -24,6 +42,17 @@
 		{#snippet badge()}
 			{#if design.shortUrl}
 				<button type="button" class="text-sm underline" onclick={() => (design.shortUrl = null)}>Clear dynamic link</button>
+			{:else if !pristine}
+				<!-- Start over lives where the work began. It appears only once something is set, and
+				     it asks twice because it takes the saved design with it. The row is the heading's
+				     own height, so showing it moves nothing. -->
+				<button
+					type="button"
+					class="text-sm underline {confirmReset ? 'text-block' : 'text-ink-3 hover:text-ink'}"
+					onclick={startOver}
+				>
+					{confirmReset ? 'Clear everything?' : 'Start over'}
+				</button>
 			{/if}
 		{/snippet}
 	</SectionHeader>

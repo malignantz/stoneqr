@@ -552,8 +552,12 @@ Added 2026-09-05. Four small things from a review of the shipped generator.
   code is the first thing painted; the pictures arrive a moment later. On the first mount of a
   page load the home page keeps the saved content type; a landing page or a nav click still sets
   its own. `apply` takes only values of the right shape, so an old record or a hand-edited one
-  cannot put a string where a number goes. "Start over" beside the Basic/Advanced toggle asks
-  twice, then restores the defaults and clears both stores.
+  cannot put a string where a number goes. "Start over" sits at the right end of the Content
+  heading, where the work began: it appears only once something is set or typed (`pristine`
+  in `Generator.svelte`, the compacted record having no keys), the heading row is its own
+  height so showing it moves nothing, and it asks twice, then restores the defaults and clears
+  both stores. It was first beside the Basic/Advanced toggle, which read as part of the page
+  chrome rather than of the design.
 - **Share links.** "Copy a link to this design" in Size and download writes the same record,
   with defaults left out, as `#1.` plus deflated (`CompressionStream`, `deflate-raw`) base64url
   JSON; browsers without it get `#0.` plain base64url. A fragment is never sent to the server,
