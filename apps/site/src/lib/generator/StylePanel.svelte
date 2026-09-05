@@ -61,8 +61,9 @@
 	/** The contrast badge: a verdict in Basic, the ratio and the verdict in Advanced. */
 	const contrastLabel = $derived.by(() => {
 		if (contrast === null) return '';
-		const verdict = contrast >= 4 ? 'clear' : 'too low';
-		return advanced ? `${contrast.toFixed(1)}:1 ${verdict}` : verdict;
+		// Not "clear": beside a Colours heading that reads as a colour.
+		const verdict = contrast >= 4 ? 'good' : 'low';
+		return advanced ? `${contrast.toFixed(1)}:1 ${verdict}` : `${verdict === 'good' ? 'Good' : 'Low'} contrast`;
 	});
 	const logoPct = $derived(Math.round(design.logoAreaRatio * 100));
 	/** The whole panel is inert while a halftone picture owns the render. */
