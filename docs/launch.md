@@ -12,7 +12,7 @@ Written 2026-09-04 after a completeness audit. Items marked **done** shipped tha
 - Accessibility: the muted text token `ink-3` was 4.2:1 on the card background; it is now 5.3:1 or better on every surface it is used on.
 - Footer: "Report a scan result" link to the scan-report issue template.
 
-Lighthouse on the live home page (local run, 2026-09-04): desktop 100 / 96 / 100 / 100, mobile 94 / 96 / 100 / 100 (performance, accessibility, best practices, SEO). Initial JavaScript 96.7 KB gzipped against a 150 KB budget. The only mobile deduction is a simulated 3.0 s largest contentful paint on a throttled connection.
+Lighthouse on the live home page after the font work the same evening (`docs/performance.md`): desktop 100 / 100 / 100 / 100, mobile 99 / 100 / 100 / 100 (performance, accessibility, best practices, SEO). Mobile LCP went from 3.0 s to 1.9 s by trimming and preloading the fonts. Initial JavaScript 96.7 KB gzipped against a 150 KB budget.
 
 ## Product: remaining before calling it 1.0
 
