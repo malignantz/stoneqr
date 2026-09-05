@@ -4,6 +4,7 @@ export const SITE = {
 	tagline: 'QR codes set in stone. Generated in your browser, never expire.',
 	promise: 'Generated on your device. Never expires. Nothing was uploaded.',
 	repo: 'https://github.com/malignantz/stoneqr',
+	scanReport: 'https://github.com/malignantz/stoneqr/issues/new?template=scan-report.yml',
 	signupcity: 'https://signupcity.app'
 } as const;
 

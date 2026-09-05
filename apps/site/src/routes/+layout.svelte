@@ -79,6 +79,7 @@
 					<li><a href="/open-source">Open source (MIT)</a></li>
 					<li><a href="/privacy">Privacy</a></li>
 					<li><a href={SITE.repo} rel="noopener">Source on GitHub</a></li>
+					<li><a href={SITE.scanReport} rel="noopener">Report a scan result</a></li>
 				</ul>
 				<p class="mt-4 text-ink-3">
 					By the makers of <a href={SITE.signupcity} rel="noopener">SignUpCity</a>.

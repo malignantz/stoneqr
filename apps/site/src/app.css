@@ -15,7 +15,7 @@
 	--color-paper-3: #e1dbcf;
 	--color-ink: #1b1917;
 	--color-ink-2: #4a4641;
-	--color-ink-3: #7d7770;
+	--color-ink-3: #67625b; /* 4.5:1 or better on white, paper, and paper-2 (was #7d7770, which measured 4.2) */
 	--color-rule: #d6cfc2;
 	--color-rule-2: #c3bbab;
 	--color-accent: #1f6f63;

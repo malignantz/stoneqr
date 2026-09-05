@@ -19,7 +19,7 @@ const HEADLINE_SIZES = [
 const PAPER = '#f4f0e8';
 const INK = '#1b1917';
 const INK_2 = '#4a4641';
-const INK_3 = '#7d7770';
+const INK_3 = '#67625b';
 const RULE = '#d6cfc2';
 const ACCENT = '#1f6f63';
 
