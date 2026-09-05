@@ -16,7 +16,8 @@
     "budget": "node scripts/budget.mjs apps/site/build",
     "og": "bun run scripts/og/generate.mjs",
     "icons": "bun run scripts/icons.mjs",
-    "sitemap": "bun run scripts/sitemap.mjs"
+    "sitemap": "bun run scripts/sitemap.mjs",
+    "fonts": "bun run scripts/fonts.mjs"
   },
   "packageManager": "bun@1.4.0"
 }

@@ -13,6 +13,10 @@ const config = {
 			strict: true
 		}),
 		prerender: { entries: ['*'] },
+		// The one stylesheet is about 50 KB raw and 12 KB compressed. Inlined, the first paint no longer waits
+		// for a second round trip after the HTML; every page is a full load or a client-side navigation, so
+		// nothing is lost by not caching it separately.
+		inlineStyleThreshold: 80 * 1024,
 		// SvelteKit hashes its own hydration bootstrap and emits a <meta> CSP on prerendered pages.
 		// frame-ancestors cannot live in a meta tag, so X-Frame-Options stays in static/_headers.
 		csp: {

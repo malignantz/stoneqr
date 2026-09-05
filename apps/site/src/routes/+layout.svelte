@@ -4,6 +4,7 @@
 	import { afterNavigate } from '$app/navigation';
 	import Mark from '$lib/components/Mark.svelte';
 	import { NAV, SITE } from '$lib/site';
+	import { FONT_PRELOADS } from '$lib/fonts';
 
 	let { children } = $props();
 	const current = $derived(page.url.pathname);
@@ -14,6 +15,13 @@
 		if (type !== 'enter') document.documentElement.dataset.navigated = '';
 	});
 </script>
+
+<svelte:head>
+	<!-- Without these the fonts are discovered only after the stylesheet has arrived and been parsed. -->
+	{#each FONT_PRELOADS as href (href)}
+		<link rel="preload" {href} as="font" type="font/woff2" crossorigin="anonymous" />
+	{/each}
+</svelte:head>
 
 <div class="flex min-h-dvh flex-col">
 	<!-- Invisible until it has focus: the first Tab press offers a way past the seven nav links. -->
