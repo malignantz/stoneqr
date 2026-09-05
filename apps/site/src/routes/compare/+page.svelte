@@ -59,7 +59,7 @@
 		<ul>
 			<li>"Trial-code sites" describes generators whose free codes are dynamic links on the vendor's domain that stop resolving when the trial ends. Their own pricing pages describe this behaviour.</li>
 			<li>QRCode Monkey is a capable static designer. Its codes are rendered on its servers, and its upgrade path leads to a dynamic-code vendor. The comparison is about free static output.</li>
-			<li>StoneQR has no paid tier. If you need an editable, tracked code, the hand-off is to <a href="https://signupcity.app" rel="noopener">SignUpCity</a>, which publishes a no-deactivation policy.</li>
+			<li>StoneQR has no paid tier and no dynamic codes. If you need an editable, tracked code, encode a short link from a service you trust as a plain URL.</li>
 			<li>Found an error in this table? <a href="https://github.com/malignantz/stoneqr/issues" rel="noopener">Open an issue</a> and it will be corrected.</li>
 		</ul>
 	</div>

@@ -222,12 +222,9 @@
 			setTimeout(() => (copied = false), 1600);
 		});
 
-	// Dynamic hand-off contract (plan §9). No token, nothing stored.
-	const dynamicHref = $derived.by(() => {
-		if (typeof window === 'undefined') return '#';
-		const ret = `${window.location.origin}${window.location.pathname}`;
-		return `${SITE.signupcity}/links/new?from=stoneqr&kind=qr&dest=${encodeURIComponent(design.payload)}&return=${encodeURIComponent(ret)}`;
-	});
+	// The dynamic hand-off to SignUpCity (plan §9) is shelved for now: the link service is on
+	// the back burner. The `?short=` return leg in Generator.svelte and the notice in ContentForm
+	// stay, so a code made through it still shows what it encodes.
 </script>
 
 <section class="grid gap-5" aria-labelledby="export-heading">
@@ -526,25 +523,6 @@
 		{/if}
 		<p class="hint">
 			Opens StoneQR with these settings and this content, including anything typed here{design.type === 'wifi' ? ', the WiFi password too' : ''}. The link is not sent to StoneQR; it lives only with whoever you give it to.{#if hasPictures}{' '}Pictures are not included; send them separately.{/if}
-		</p>
-	</div>
-
-	<hr class="rule" />
-
-	<div class="grid gap-2">
-		<p class="ticket">Need to change it after printing?</p>
-		<a
-			href={design.payload ? dynamicHref : '#'}
-			class="btn btn-secondary aria-disabled:pointer-events-none aria-disabled:opacity-45"
-			aria-disabled={!design.payload}
-			tabindex={design.payload ? undefined : -1}
-			rel="noopener"
-		>
-			Make it editable and trackable
-		</a>
-		<p class="hint">
-			Creates a short link in a free SignUpCity account and brings you back here with it. StoneQR stores nothing.
-			SignUpCity's links carry a published no-deactivation policy.
 		</p>
 	</div>
 </section>

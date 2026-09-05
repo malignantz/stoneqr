@@ -13,4 +13,4 @@ Statements the site makes about other products or about physics, with where they
 | Inverted (light-on-dark) codes fail on older Android and dedicated scanners | sizing warning | docs/research/qr-technical.md §3 | [unverified]; keep behind a warning |
 | Calendar (VEVENT) QR support varies by phone | /event | docs/research/qr-technical.md §5 | Confirm in the scan matrix |
 | Avery 5160/5163/5395/L7160 geometry | engine labels | LibreOffice labels.xml, gLabels templates (see notes in `packages/engine/src/labels.ts`) | Print the calibration sheet on a real sheet |
-| SignUpCity publishes a no-deactivation policy | /never-expires, /compare, export panel | private signupcity repo | Publish the policy page before launch |
+| SignUpCity publishes a no-deactivation policy | none since 2026-09-05 (the hand-off is shelved; the claim was on /never-expires, /compare, and the export panel) | private signupcity repo | Publish the policy page before the hand-off returns |

@@ -57,7 +57,7 @@ QRCode Monkey is the best free static designer today, but its upsell hands users
 
 **Bulk:** CSV or pasted list (one payload per line, optional label column). Generates in a Web Worker, downloads a ZIP of SVG or PNG, or lays out onto a label-sheet PDF (Avery 5160, 5163, 5395, A4 L7160 to start; geometry verified against Avery's own templates before shipping).
 
-**Dynamic mode:** a "Make it editable and trackable" button. Explains that this requires a free SignUpCity account, opens SignUpCity's link creation with the payload prefilled, and returns with the short URL to encode. Scan stats live in SignUpCity. StoneQR stores nothing.
+**Dynamic mode (shelved 2026-09-05; the button is removed from the export panel and the copy on /never-expires, /compare, and /privacy no longer promises it, while the return leg stays):** a "Make it editable and trackable" button. Explains that this requires a free SignUpCity account, opens SignUpCity's link creation with the payload prefilled, and returns with the short URL to encode. Scan stats live in SignUpCity. StoneQR stores nothing.
 
 **Marketing pages:** home (the generator), `/never-expires` (the policy and the story), `/print-size`, `/wifi`, `/vcard`, `/event`, `/bulk`, `/compare` (a factual comparison table against the expiring-code sites), `/open-source`, `/privacy`.
 

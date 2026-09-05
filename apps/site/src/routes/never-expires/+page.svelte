@@ -49,11 +49,10 @@
 
 		<h2>If you need an editable code</h2>
 		<p>
-			Sometimes the destination has to change after printing. For that, StoneQR offers a hand-off
-			to <a href="https://signupcity.app" rel="noopener">SignUpCity</a>, a separate product by the
-			same maker, which creates a short link you can edit and see scan counts for. SignUpCity
-			publishes a no-deactivation policy: links are never turned off for non-payment, and free
-			links stay free. StoneQR itself stores nothing either way.
+			Sometimes the destination has to change after printing. The honest way to do that is a
+			short link on a domain you control, or on a service whose terms you have read, encoded as a
+			plain URL here. The code itself is then permanent; only the link behind it changes. A
+			built-in hand-off to a link service is planned, but StoneQR ships without one for now.
 		</p>
 
 		<h2>The short version</h2>

@@ -15,10 +15,7 @@
 		<p>
 			Everything you type into StoneQR, including URLs, WiFi passwords, contact details, and
 			uploaded logos, stays in your browser. The site has no server that receives it, no account
-			system, and no database. Downloads are produced on your device. If you choose the optional
-			"make it editable" hand-off, you are taken to SignUpCity, a separate product with its own
-			<a href="https://signupcity.app/privacy" rel="noopener">privacy policy</a>; StoneQR passes the
-			destination in the link you click and keeps no copy. Your current design is kept in your own
+			system, and no database. Downloads are produced on your device. Your current design is kept in your own
 			browser's storage so it is still there when you come back; "Start over" above the generator
 			clears it, and so does clearing site data. A "Copy a link to this design" link carries the
 			settings and content in the part of the address after the #, which browsers never send to a
