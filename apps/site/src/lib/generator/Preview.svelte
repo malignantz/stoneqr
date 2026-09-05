@@ -216,9 +216,13 @@
 	  so nothing sits above the code to push it out of line.
 	-->
 	<div id="preview-card" class="sheet mx-auto w-full max-w-[min(100%,72vw)] overflow-hidden lg:max-w-none">
+		<!-- The stage stays white whatever the background colour: the code carries its own
+		     background inside its quiet zone, and a stage painted the same colour made it spill
+		     past the code and, with a frame, outside the frame's rounded shape. Transparent shows
+		     a checkerboard so the missing background is visible. -->
 		<div
 			class="relative grid aspect-square w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] place-items-center overflow-hidden p-4"
-			style="background: {design.transparentBg ? 'repeating-conic-gradient(#e6e1d6 0 25%, #f4f0e8 0 50%) 0 0 / 16px 16px' : design.bg}"
+			style="background: {design.transparentBg ? 'repeating-conic-gradient(#e6e1d6 0 25%, #f4f0e8 0 50%) 0 0 / 16px 16px' : 'white'}"
 			role="img"
 			aria-label="QR code preview encoding a {describe(design.type)}"
 		>

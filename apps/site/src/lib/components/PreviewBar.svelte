@@ -56,7 +56,7 @@
 
 <div class="preview-bar lg:hidden" data-show={show} aria-hidden={!show}>
 	<div class="mx-auto flex max-w-7xl items-center gap-3 px-4">
-		<div class="preview-bar-thumb" style="background: {design.transparentBg ? 'white' : design.bg}">
+		<div class="preview-bar-thumb" style="background: white">
 			{#if design.halftoneActive && design.halftonePreviewUrl}
 				<img src={design.halftonePreviewUrl} alt="" class="h-full w-full object-contain [image-rendering:pixelated]" />
 			{:else if svg}
