@@ -187,6 +187,35 @@ describe('mailto', () => {
 		expect(() => mailto({ to: 'not-an-email' })).toThrow(/not a valid email address/);
 		expect(() => mailto({ to: 'a@b.com,broken@' })).toThrow(/broken@/);
 	});
+	it('adds cc and bcc after the subject and body, addresses still readable', () => {
+		expect(mailto({ to: 'a@b.com', cc: 'c@d.org' })).toBe('mailto:a@b.com?cc=c@d.org');
+		expect(mailto({ to: 'a@b.com', bcc: 'e@f.net' })).toBe('mailto:a@b.com?bcc=e@f.net');
+		expect(mailto({ to: 'a@b.com', subject: 'Hi', body: 'There', cc: 'c@d.org, x@y.io', bcc: 'e@f.net' })).toBe(
+			'mailto:a@b.com?subject=Hi&body=There&cc=c@d.org,x@y.io&bcc=e@f.net'
+		);
+	});
+	it('leaves an empty cc or bcc out', () => {
+		expect(mailto({ to: 'a@b.com', cc: '', bcc: '  ' })).toBe('mailto:a@b.com');
+		expect(mailto({ to: 'a@b.com', cc: ' , ' })).toBe('mailto:a@b.com');
+	});
+	it('percent-encodes only what would break a query value in cc and bcc', () => {
+		expect(mailto({ to: 'a@b.com', cc: 'name+tag@d.org' })).toBe('mailto:a@b.com?cc=name%2Btag@d.org');
+		expect(mailto({ to: 'a@b.com', bcc: 'r&d@d.org,50%off@d.org' })).toBe('mailto:a@b.com?bcc=r%26d@d.org,50%25off@d.org');
+	});
+	it('checks cc and bcc like to, naming the field', () => {
+		expect(() => mailto({ to: 'a@b.com', cc: 'nope' })).toThrow(/not a valid email address: nope/);
+		expect(() => mailto({ to: 'a@b.com', bcc: 'c@d.org,broken@' })).toThrow(/broken@/);
+		try {
+			mailto({ to: 'a@b.com', cc: 'nope' });
+		} catch (e) {
+			expect((e as PayloadError).field).toBe('cc');
+		}
+		try {
+			mailto({ to: 'a@b.com', bcc: 'nope' });
+		} catch (e) {
+			expect((e as PayloadError).field).toBe('bcc');
+		}
+	});
 });
 
 describe('sms and tel', () => {
@@ -290,7 +319,7 @@ describe('vevent', () => {
 });
 
 describe('registry', () => {
-	it('lists the ten types in selector order', () => {
+	it('lists the eleven types in selector order', () => {
 		expect(PAYLOAD_TYPES.map((t) => t.id)).toEqual([
 			'url',
 			'text',
@@ -301,7 +330,8 @@ describe('registry', () => {
 			'sms',
 			'tel',
 			'geo',
-			'event'
+			'event',
+			'whatsapp'
 		]);
 		expect(PAYLOAD_TYPES.map((t) => t.label)).toEqual([
 			'URL',
@@ -313,13 +343,14 @@ describe('registry', () => {
 			'SMS',
 			'Phone',
 			'Location',
-			'Calendar event'
+			'Calendar event',
+			'WhatsApp'
 		]);
 		for (const t of PAYLOAD_TYPES) expect(t.description.length).toBeGreaterThan(0);
 	});
 	it('exposes every encoder on the namespace object', () => {
 		expect(Object.keys(payloads).sort()).toEqual(
-			['geo', 'mailto', 'mecard', 'sms', 'tel', 'text', 'url', 'vcard', 'vevent', 'wifi'].sort()
+			['geo', 'mailto', 'mecard', 'sms', 'tel', 'text', 'url', 'vcard', 'vevent', 'whatsapp', 'wifi'].sort()
 		);
 		expect(payloads.url('stoneqr.app')).toBe('https://stoneqr.app');
 	});
@@ -333,6 +364,7 @@ describe('round trip through the encoder and decoder', () => {
 		['vcard', vcard(CONTACT)],
 		['mecard', mecard(CONTACT)],
 		['email', mailto({ to: 'srowen@example.org', subject: 'RSVP', body: 'Yes, I can make it.' })],
+		['email with cc and bcc', mailto({ to: 'srowen@example.org', subject: 'RSVP', cc: 'a@example.org,b+x@example.org', bcc: 'c@example.org' })],
 		['sms', sms({ to: '+1 (555) 555-0100', body: 'On my way' })],
 		['smsto', sms({ to: '+1 (555) 555-0100', body: 'On my way', scheme: 'smsto' })],
 		['tel', tel('+1 555 555 0100')],

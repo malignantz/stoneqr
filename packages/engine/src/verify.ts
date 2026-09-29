@@ -49,6 +49,25 @@ export async function verifyRasterAsync(image: RasterImage, expected: string): P
 	return { ok: true, decoded: res.data, decoder: 'jsqr' };
 }
 
+/**
+ * Read whatever a raster holds, with no expected payload: the reader behind /scan. Same two
+ * decoders in the same order as `verifyRasterAsync`, so a photo gets exactly the second chance a
+ * download gets. Null means neither decoder found a code.
+ */
+export async function decodeRasterAsync(image: RasterImage): Promise<{ text: string; decoder: 'paulmillr' | 'jsqr' } | null> {
+	try {
+		const text = decodeQR({ width: image.width, height: image.height, data: image.data });
+		return { text, decoder: 'paulmillr' };
+	} catch {
+		// Fall through to jsQR, which is loaded only now.
+	}
+	const { default: jsQR } = await import('jsqr');
+	const data = image.data instanceof Uint8ClampedArray ? image.data : new Uint8ClampedArray(image.data);
+	const rgba = data.length === image.width * image.height * 4 ? data : rgbToRgba(data, image.width * image.height);
+	const res = jsQR(rgba, image.width, image.height);
+	return res ? { text: res.data, decoder: 'jsqr' } : null;
+}
+
 function rgbToRgba(rgb: Uint8ClampedArray, pixels: number): Uint8ClampedArray {
 	const out = new Uint8ClampedArray(pixels * 4);
 	for (let i = 0, j = 0; i < pixels; i++, j += 3) {

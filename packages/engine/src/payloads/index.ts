@@ -16,6 +16,7 @@ export { sms, type SmsFields } from './sms.js';
 export { tel, normalisePhone } from './tel.js';
 export { geo, type GeoFields } from './geo.js';
 export { vevent, escapeIcs, foldIcsLine, type VeventFields } from './vevent.js';
+export { whatsapp, normaliseWhatsappNumber, type WhatsappFields } from './whatsapp.js';
 
 import { url } from './url.js';
 import { text } from './text.js';
@@ -27,12 +28,13 @@ import { sms } from './sms.js';
 import { tel } from './tel.js';
 import { geo } from './geo.js';
 import { vevent } from './vevent.js';
+import { whatsapp } from './whatsapp.js';
 
 /** Every encoder in one object, for `payloads[type](fields)` style call sites. */
-export const payloads = { url, text, wifi, vcard, mecard, mailto, sms, tel, geo, vevent } as const;
+export const payloads = { url, text, wifi, vcard, mecard, mailto, sms, tel, geo, vevent, whatsapp } as const;
 
 /** The content types the UI offers, in the order they appear in the selector. */
-export type PayloadType = 'url' | 'text' | 'wifi' | 'vcard' | 'mecard' | 'email' | 'sms' | 'tel' | 'geo' | 'event';
+export type PayloadType = 'url' | 'text' | 'wifi' | 'vcard' | 'mecard' | 'email' | 'sms' | 'tel' | 'geo' | 'event' | 'whatsapp';
 
 export const PAYLOAD_TYPES: { id: PayloadType; label: string; description: string }[] = [
 	{ id: 'url', label: 'URL', description: 'Open a web page.' },
@@ -44,5 +46,6 @@ export const PAYLOAD_TYPES: { id: PayloadType; label: string; description: strin
 	{ id: 'sms', label: 'SMS', description: 'Start a text message with the wording filled in.' },
 	{ id: 'tel', label: 'Phone', description: 'Dial a number.' },
 	{ id: 'geo', label: 'Location', description: 'Drop a pin at a latitude and longitude.' },
-	{ id: 'event', label: 'Calendar event', description: 'Add an event to the calendar.' }
+	{ id: 'event', label: 'Calendar event', description: 'Add an event to the calendar.' },
+	{ id: 'whatsapp', label: 'WhatsApp', description: 'Start a WhatsApp chat with you, with the first message already written.' }
 ];
