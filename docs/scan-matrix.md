@@ -4,7 +4,7 @@ Real-phone results for every kind of code the generator makes, at the sizes peop
 
 ## How to run it
 
-1. **Build the sheets.** From the repo root run `bun run scan-sheets`, open the URL it prints in any browser, and wait for "Done". It writes `docs/scan-sheets.pdf` (ignored by git; about 2 MB, 15 pages). Pass `-- --photo ~/Pictures/some.jpg` to use a real photograph for the Photo QR rows instead of the painted stand-in; note which you used in the results.
+1. **Build the sheets.** From the repo root run `bun run scan-sheets`, open the URL it prints in any browser, and wait for "Done". It writes `docs/scan-sheets.pdf` (ignored by git; about 2 MB, 16 pages). Pass `-- --photo ~/Pictures/some.jpg` to use a real photograph for the Photo QR rows instead of the painted stand-in; note which you used in the results.
 2. **Print** on plain paper at 100% scale, never "fit to page". A laser print is the baseline. If you have an inkjet, print a second copy later and record it as a second pass; inkjet dot gain is what turns silhouette dots grey.
 3. **Check the print** with a ruler: A4 (50 mm) should measure 50 mm across the quiet zone. If it does not, the printer scaled the page.
 4. **Three phones**, the default camera app on each, plus Google Lens on one of them. Write the model and OS version in the column headers below. The interesting spread is one recent iPhone, one recent Android, and one older or cheaper Android.
@@ -19,7 +19,7 @@ Legend: ✅ scanned first try · ~ scanned after moving or changing the light ·
 
 ### What the next print owes us
 
-The sheet built on 2026-09-12 carries nine codes no phone has seen. Everything else already has a
+The sheet built on 2026-09-12 carries nine codes no phone has seen, and the one built on 2026-09-29 adds six more. Everything else already has a
 Pixel 10 Pro column from 2026-09-05.
 
 - **C3**, the widest logo the site allows: 27% of the width, hiding 16% of the code, which is past
@@ -31,6 +31,10 @@ Pixel 10 Pro column from 2026-09-05.
   in a wide hole.
 - **N1 to N4**, the built-in logo icons (added 2026-09-12): the everyday WiFi case, the thinnest
   icon at the widest size, an icon in navy on the Rounded preset, and one at business-card size.
+
+- **T1 to T6**, the six templates (added 2026-09-29). None has met a phone; T3 (copper corners on
+  cream) and T5 (plum on lilac) are the ones that could plausibly fail, and both want a colour
+  print.
 
 A colour print is still owed for L2 (red ink) and L8 (the light end of a gradient), which the
 black-and-white laser could not test.
@@ -188,7 +192,7 @@ New on 2026-09-06 and not yet on paper.
 ## N. Built-in logo icons
 
 The icons under the logo tile, added 2026-09-12. Each is drawn by `logo-icons.ts` in the code
-colour and placed unprepared, exactly as the Logo panel places it, on the clear space. That every
+colour and placed unprepared, exactly as the Logo tab places it, on the clear space. That every
 icon decodes in software at 20% and at the 32% maximum is already checked by
 `bun run logo-fixtures`; these rows are the paper and the phones. N4 is also a legibility check: at
 20 mm the icon is about 3.5 mm across, so note whether a person still reads it as a calendar.
@@ -201,6 +205,29 @@ Not yet on paper.
 | N2 | 30 mm | ✅ | – | – | – | Menu icon at the widest the site allows, logo 27% wide, hides 16%, past the warn line; the thinnest strokes of the set |
 | N3 | 30 mm | ✅ | – | – | – | Calendar icon in navy `#1a3d8f` on the Rounded preset, logo 21% wide, hides 11% |
 | N4 | 20 mm | ✅ | – | – | – | Calendar icon at business-card size, logo 21% wide, hides 11%, the icon about 3.5 mm across; does the icon still read? |
+
+## T. Templates
+
+The six one-tap designs at the top of the Style tab (`lib/templates.ts`, added 2026-09-29). A
+template is a look, a code colour on its paper, sometimes a corner colour, sometimes a frame; the
+sheet builds these rows from the same list the tiles come from, so the two cannot drift. All are
+30 mm with no logo, the size rows B and E use, so each compares straight with B2 (rounded) or E2
+(framed). The weaker of the code and corner colours is at least 4.5:1 on its paper and none is
+reddish, which the tests pin; what no test can say is how a tinted paper and a coloured ink read on
+a phone, so a colour print matters here more than anywhere in the matrix. On a black-and-white
+laser the colours come out as greys of the same luminance, which tests the contrast half only.
+
+Not yet on paper. A pass is a first-try read, and on T3 and T5 also that the tinted paper printed
+as a faint tint rather than a visible fill.
+
+| ID | Template | Colours | Software | iPhone | Android | Google Lens | Notes |
+|---|---|---|---|---|---|---|---|
+| T1 | Plain | black on white, 21:1 | ✅ | – | – | – | the default design; the baseline for the rest of the section |
+| T2 | Navy rounded | `#14275a` on white, 14.3:1 | ✅ | – | – | – | the Rounded look; compare with B2 |
+| T3 | Forest dots with copper corners | `#1b4d2e` on `#faf6ec`, corners `#8a4b1f` (6.3:1, the weaker) | ✅ | – | – | – | the only template with a corner colour of its own: do the brown finder patterns still lock on first? Needs a colour print |
+| T4 | Slate leaf | `#34424f` on white, 10.3:1 | ✅ | – | – | – | the Leaf look, compare with L11 |
+| T5 | Plum soft | `#4a1d5e` on `#f6f0f9`, 11.5:1 | ✅ | – | – | – | the Soft look on a lilac tint; plum is the hue most likely to fall into the red band, so this is the one to watch on an old Android |
+| T6 | Boxed | black on white with a black frame reading "Scan me" | ✅ | – | – | – | as E2, artwork 8% wider and 21% taller; the same code as T1 inside the frame |
 
 ## File formats opened in
 

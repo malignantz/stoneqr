@@ -65,7 +65,7 @@ Lighthouse on the live home page after the font work the same evening (`docs/per
 
 > I kept seeing printed QR codes that stopped working because they were "dynamic" codes from a free trial that lapsed. StoneQR only makes static codes, computed on your device, so there is nothing to expire and nothing to upload.
 >
-> It is built for print: SVG, PDF (CMYK), and EPS with real millimetre sizes, a print-size and scan-distance calculator, logos with a coverage cap, bulk generation to Avery label sheets, and a decode check on every download so the file you get actually scans. The unusual bit is Photo QR, which blends a picture into the modules and verifies the result still decodes.
+> It is built for print: SVG, PDF (100% K black for the plain style), and EPS (in Advanced) with real millimetre sizes, a print-size and scan-distance calculator, logos with a coverage cap, bulk generation to Avery label sheets, and a decode check on every download so the file you get actually scans. The unusual bit is Photo QR, which blends a picture into the modules and verifies the result still decodes.
 >
 > MIT licensed, SvelteKit plus a pure-TypeScript engine, hosted as static files on Cloudflare. No accounts, no database, no server-side code. Happy to answer questions about the halftone renderer or the decode-verification loop.
 

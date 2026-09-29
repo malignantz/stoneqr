@@ -1106,3 +1106,147 @@ and the badge flashed "Checking…" on the way.
 - One trap on the way: the Artistic QR hit path revokes the previous object URL, and reading that
   URL inside the effect that writes it made the effect chase itself (`effect_update_depth_exceeded`)
   and left a dead URL in the preview. The read is under `untrack`.
+
+### 8q. A calmer generator
+
+2026-09-28, from Garrett: "the front end has a lot going on / feels busy". The audit, the
+research, and the plan are `docs/improvement-plan-2026-09-28.md`; this is what was built, in two
+waves run as parallel workstreams with one owner per file.
+
+Measured in a fresh headless Chrome profile over CDP (visible elements inside `#generator`),
+Basic with nothing typed, at 1440 × 900 unless it says phone (375 × 812):
+
+| Measure | Before | After wave 1 | After wave 2 | Target |
+|---|---|---|---|---|
+| Tool top edge | 331 px | 179 px | 179 px | 240 px or less |
+| Generator height | 1,554 px | 885 px | 1,005 px | 950 px or less |
+| Buttons | 38 | 32 | 38 | 26 or fewer |
+| Uppercase labels | 15 | 6 | 7 | 8 or fewer |
+| Words inside the tool | 270 | 125 | 132 | 160 or fewer |
+| Size and download sheet | 1,190 px | 458 px | 458 px | 520 px or less |
+| Generator height, phone | 3,189 px | 1,838 px | 1,903 px | 2,400 px or less |
+| Primary download from the top, phone | 2,948 px | 1,846 px | 1,911 px | |
+
+(The plan's "before" column was taken another way and reads 352 px, 3,880 px, and 265 words;
+the column here is the same script before and after.) Wave 2's Template row, which the plan asked
+for, is what put the generator back over 950 px and the buttons back to 38; Garrett ruled that
+the button count is not to be chased by hiding useful controls.
+
+- **Design tabs.** Logo, Style, and Artistic QR were three stacked panels; they are one sheet under
+  a tab list, **Style, Logo, Artistic QR**, Style in front (`components/Tabs.svelte`, keys in
+  `components/tabs.ts`: Left, Right, Home, End, roving tabindex, automatic activation). All three
+  panels stay mounted, because `LogoPanel`'s icon-follows-the-code-colour effect must run while
+  Style is in front; the panels take `tabbed` and `open` and draw their body only while open. A
+  tab carries a copper dot when something is set in it; Style and Logo are struck through while
+  Artistic QR is on and stay selectable; a line in ticket type under the list names what the
+  hidden tabs hold ("Also set: Logo · WiFi (built-in icon)"), so a tab hides nothing, as a fold
+  hid nothing. The words come from `lib/generator/summaries.ts`, pure functions shared by the tabs
+  and the untabbed headers. The tab is module state in `Generator.svelte` like the design: `/logo`
+  and `/photo` ask for theirs, other pages leave it where the visitor put it, and a restored
+  Artistic QR picture opens its tab unless the page asked for one. This reverses §8l's "Logo
+  first": the Logo tab is always in view and marked when set.
+- **Hero and header.** The heading is one line from `lg` (`hero-tool`, `clamp(1.6rem, 3.4vw,
+  2.6rem)`) and the lede one sentence; the landing pages keep their headings (the Open Graph cards
+  use them) and trim their ledes, keeping the privacy clause on `/wifi` and `/vcard`. The header
+  lost WiFi and vCard (they stay in the footer and the type picker). On a phone the nav is 13 px
+  with 0.25 rem link padding, which fits the five original links in 375 px; with Scan added the
+  row overflows by 35 px at 375 (50 px at 360) and scrolls, and its right edge fades to say so.
+- **Content.** Six tiles, icon beside the word, three by two: Link, Text, WiFi, Contact, Email,
+  More. More is a disclosure beside the radio group, set in the sixth cell by CSS; open, it adds
+  SMS, Phone, Location, Event (and, from wave 2, WhatsApp, captioned "Chat" because "WhatsApp"
+  clips at 1,024 to 1,100 px). The radios for the extra types come before More in the DOM, so a
+  screen reader meets them first; accepted. Contact is the vCard tile; MeCard is an Advanced
+  format under it, and switching carries the typed fields across.
+- **Paste and go.** `lib/generator/detect.ts` recognises WiFi, vCard, MeCard, calendar,
+  `mailto:`, `sms:`, `tel:`, `geo:`, a bare email address, and a bare phone number, and never
+  reinterprets a web address; in the Link and Text forms it offers ("That looks like a WiFi
+  network." / "Make a WiFi code") and changes nothing until pressed. It is 2.5 KB gzipped, so
+  ContentForm imports it only once something that is not an `http(s)` address has been typed.
+- **The design menu.** A three-dot button in the Content heading replaced "Save", "Start over",
+  and the share block under the downloads. It is a modal `<dialog>`, the `ColourPopover`
+  pattern, so a click outside is swallowed. After "Copy a link to this design" a notice under the
+  heading says what the link carries (the WiFi password clause and the pictures clause as before;
+  a built-in logo icon travels, so it does not count as a picture) for eight seconds, or holds the
+  link in a field when the clipboard refuses.
+- **Style in Basic** is a Template row (wave 2), Colours (Code, Background, and the contrast
+  badge), Preset, and the frame switch ("Frame with a call to action"). The Corners colour is
+  Advanced, and so are the six palette colours from `lib/palettes.ts` (each at least 8.4:1 on
+  white and pinned by test): they were in Basic until the Template row landed, when three rows of
+  pickers (Template, palette, Preset) put the button count back to where the audit started.
+  No subhead sits over a lone label any more ("Shape" over "Preset", "Show as" over the tones).
+- **Size and download.** Basic's four tall cards became `components/TierPicker.svelte`: four tiles
+  (name, one word of use, `50 mm · 2 in`) and one sentence for the chosen size built from
+  `tierDistance`, so the rule still lives in `sizes.ts`. Four across when the picker is 18.5 rem
+  or wider (1440 px), two by two below (a 375 px phone, and the 18 rem column between `lg` and
+  `xl`): at 17 rem the phone got four across and the chosen tile's bold "Medium" broke mid-word.
+  Basic's downloads are PNG, then PDF, SVG, and Copy in one row, then "Printing a lot of them?
+  Print a test sheet first." Advanced folds Encoding unless something in it is set. Disabled
+  secondary buttons keep full opacity with `ink-3` text, so a locked download still reads as a
+  button on basalt.
+- **Words.** "Look" became "Tone" in Artistic QR; the Cut slider keeps "Paper" and "Ink" (tone,
+  not colour fields). `advancedInUse` now says "module shape", "corner frames and dots", "corner
+  colour", "gradient fill", "read-from distance", "PNG detail", "MeCard contact format", and the
+  Artistic QR items by that name. Audit items 12 to 19 are closed.
+
+### 8r. A reader, and five more things
+
+- **`/scan`** reads a picture of a code (file, drop, or paste) with the decoders the site already
+  ships, through a new `decodeRasterAsync` in the engine's `verify.ts` (paulmillr, then jsQR
+  lazily), trying a few scales. It shows the exact text, the type as fields through `detect`, and
+  a link as plain text with the host emphasised, never as a link. `lib/links.ts` (`splitLink`)
+  decides which part of an address is the host, for `/scan` and the Inspector alike, so the two
+  cannot disagree. Text before an `@` and an `xn--` host each get a warning that describes the
+  mechanism; a host in `lib/redirectors.ts` gets the shared `RedirectNote` ("This address goes
+  through bit.ly, a redirect service. Whoever runs it decides where the link leads, and can
+  change it or switch it off."), every host sourced in `docs/claims.md` (rebrand.ly was dropped
+  for want of an operator's own description). "Make this a StoneQR code" goes through
+  `openInGenerator` in Generator's module script, which leaves a pending type the next mount
+  honours; it holds the same short address, and the page says so before the button. No camera:
+  `Permissions-Policy: camera=()` stays.
+- **Inspector** under the preview, both control sets: "Contains" and the payload on one line, the
+  host normalised and emphasised, "Show all" for the payload as held (bytes in Advanced), and the
+  redirect note. It replaced the phone-only repeat of the promise line.
+- **Stress test** (Advanced, "Test it harder"): the artwork that passed the check, decoded again
+  small (3 px a module), blurred, dim, tilted 12°, sheared 10°, and small plus blurred. The plan's
+  numbers failed clean black-on-white codes, so two were recalibrated against the two decoders:
+  blur is a Gaussian of 0.33 modules applied at 5 px a module (and at 3 px for small plus
+  blurred), because from 0.35 the decoders start to lose clean codes; dim squeezes the levels to
+  78 to 177, 99 apart, because both decoders read every clean code at 90 levels apart and none at
+  84. It is advice: never `design.verify`, never `memo.ts`, and it says "a simulation on this
+  device, not a promise about every phone". About 210 ms for a styled code in the dev build; it
+  loads with a dynamic import.
+- **Undo and redo** (`history.ts`, 100 entries, equal neighbours folded, a push 400 ms after the
+  last change, pictures held by reference): the design menu's first two items, and Cmd/Ctrl+Z,
+  Shift+Cmd/Ctrl+Z, Ctrl+Y outside text fields; Cmd/Ctrl+S opens Save. Start over can be undone
+  and says so. The menu learns about undo from `undo.svelte.ts`, a module-scope object Generator
+  writes, not through ContentForm. Known and accepted: undoing Start over does not restore which
+  saved design the working one came from, and a nav click that changes the type is an undoable
+  step.
+- **Templates** (`lib/templates.ts`): six whole designs, Plain, Navy rounded, Forest dots with
+  copper corners, Slate leaf, Plum soft, Boxed; matched from the fields, never stored, like looks.
+  A template brings its frame and colours and changes the frame's words only if they are still
+  "Scan me". Forest and Plum sit on tinted paper. A corner colour a template set is Basic's, so
+  `advancedInUse` reports "corner colour" only when it matches no template
+  (`cornerColourIsAdvanced`). Scan-sheet section `T` (T1 to T6) carries them; T3 and T5 want a
+  colour print.
+- **Payloads.** WhatsApp (`wa.me`, 7 to 15 digits), email cc and bcc (Advanced), and campaign tags
+  on a link (Advanced, folded under the Web address field, with the cost in characters and
+  modules). Old records lack the new fields and apply as before.
+- **Share.** Basic's third button is "Share" on a touch screen that can share a PNG file
+  (`pointer: coarse` and `navigator.canShare({ files })`); desktop Chrome can share files too, but
+  a laptop wants a copy, so it stays "Copy" there. It shares only a code that passed the check.
+- **`/bulk`**: the list card is `content-start`, which removed the 70 px of air above and below
+  its field.
+
+### 8s. What the gates showed
+
+- Tests went from 337 to 556 (engine 167 to 184, site 170 to 372); `bun run check` is clean; no
+  golden file changed.
+- Initial JavaScript for `/` was already 113.3 KB gzipped at the start of this work, not the 97 KB
+  the plan assumed, so its 110 KB gate could not be met by the work itself. Wave 1 added 3.8 KB
+  (117.1) and wave 2 8.1 KB (125.2), inside the 150 KB budget; the reader, the stress test, and
+  paste-and-go load on demand.
+- Every download path was run in a browser after each wave (plain, styled with a frame, Artistic
+  QR through the worker, SVG, PDF), plus a share link opened in a fresh profile, a reload, the
+  tabs, type tiles, tiers, and menu by keyboard, undo and redo, `/scan` on generated codes, and
+  the stress test.
