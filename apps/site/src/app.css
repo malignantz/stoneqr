@@ -203,6 +203,19 @@ a:hover {
 .hero-cut > span {
 	display: block;
 }
+/*
+ * The heading on the generator pages: sized so the tool starts near the top of a laptop screen,
+ * and one line from lg up. Usable with `hero-cut` (the home page keeps its cut lettering) or on a
+ * plain h1 (the landing pages). The cut spans stop being blocks so the two halves share a line;
+ * on a phone the line simply wraps where the words fall.
+ */
+.hero-tool {
+	font-size: clamp(1.6rem, 3.4vw, 2.6rem);
+	line-height: 1;
+}
+.hero-tool.hero-cut > span {
+	display: inline;
+}
 /* The empty preview's marks draw themselves in once, on the first load only. */
 @media (prefers-reduced-motion: no-preference) {
 	.empty-marks rect {
@@ -457,6 +470,14 @@ a:hover {
 	color: var(--color-ink-3);
 	opacity: 1;
 }
+/* A disabled outline button at 0.4 opacity all but vanishes on basalt: keep it a visible, dimmed button. */
+.btn-secondary:disabled {
+	opacity: 1;
+	background: transparent;
+	color: var(--color-ink-3);
+	border-color: var(--color-rule);
+	cursor: not-allowed;
+}
 .btn-stack {
 	min-height: 2.9rem;
 	flex-direction: column;
@@ -703,6 +724,48 @@ a:hover {
 }
 .swatch[data-on='true'] .swatch-name {
 	color: var(--color-stone-ink);
+}
+
+/* Palette dots (WS-D) */
+/*
+ * Six code colours in Basic's Colours group. Each is a filled circle of the colour sitting in a
+ * small carved well; the chosen one is ringed in limestone, the stone that means "pressed".
+ * The focus ring is the site's own, in @layer base.
+ */
+.palette {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.45rem;
+}
+.palette-dot {
+	flex: 0 0 auto;
+	display: grid;
+	place-items: center;
+	width: 2rem;
+	height: 2rem;
+	padding: 0;
+	border: 1px solid var(--color-rule);
+	border-radius: 999px;
+	background: var(--color-field);
+	box-shadow: var(--carve);
+	cursor: pointer;
+	transition: box-shadow 120ms, border-color 120ms;
+}
+.palette-dot::before {
+	content: '';
+	width: 1.25rem;
+	height: 1.25rem;
+	border-radius: 999px;
+	background: var(--dot);
+	/* A hairline light rim, so a colour close to the well (Black, Slate) still reads as a disc. */
+	box-shadow: 0 0 0 1px rgb(255 255 255 / 0.22), 0 1px 2px rgb(0 0 0 / 0.5);
+}
+.palette-dot:hover:not(:disabled) {
+	border-color: var(--color-ink-3);
+}
+.palette-dot[data-on='true'] {
+	border-color: var(--color-stone);
+	box-shadow: var(--carve), 0 0 0 2px var(--color-stone);
 }
 
 /* The picture input: a dashed tile that takes a drop or a click. */
@@ -1040,14 +1103,50 @@ a:hover {
 }
 
 /*
- * Content type tiles: an icon over a short name, ten of them in two rows of five. Keys cut into
- * the slab; the chosen one is a raised limestone key.
+ * Content type tiles: an icon beside a short word, three to a row. Six show to begin with (Link,
+ * Text, WiFi, Contact, Email, More) and More adds rows of three for the rest. Keys cut into the
+ * slab; the chosen one is a raised limestone key.
+ *
+ * `.type-grid` is the three columns. The radios sit in `.type-radios`, which takes those columns
+ * over with subgrid, so the group holds nothing but radios; the More button is its sibling, set in
+ * the sixth cell that the group leaves empty. Without subgrid More drops to a row of its own.
+ * A word longer than its tile is clipped inside the box by `.type-name`; check new words in a
+ * 1100 px window, where the column is 18rem and a tile is about 76 px.
  */
-.type-tile {
+.type-grid {
 	display: grid;
-	justify-items: center;
-	gap: 0.3rem;
-	padding: 0.55rem 0.15rem 0.45rem;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.4rem;
+	container-type: inline-size;
+}
+.type-radios {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.4rem;
+}
+/* The first tile of the extra rows starts a row, so the sixth cell stays free for More. */
+.type-radios > .type-extra-first {
+	grid-column: 1;
+}
+@supports (grid-template-columns: subgrid) {
+	.type-radios {
+		grid-template-columns: subgrid;
+		grid-template-rows: subgrid;
+		grid-row: 1 / span var(--type-rows, 2);
+	}
+	.type-tile-more {
+		grid-column: 3;
+		grid-row: 2;
+	}
+}
+.type-tile {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	min-width: 0;
+	min-height: 2.4rem;
+	padding: 0.4rem 0.5rem;
 	border: 1px solid var(--color-rule);
 	border-radius: 7px;
 	background: var(--color-field);
@@ -1055,6 +1154,9 @@ a:hover {
 	color: var(--color-ink-2);
 	cursor: pointer;
 	transition: border-color 120ms, background 120ms, color 120ms, box-shadow 120ms;
+}
+.type-tile > svg {
+	flex: none;
 }
 .type-tile:hover {
 	border-color: var(--color-rule-2);
@@ -1070,20 +1172,116 @@ a:hover {
 	outline: 2px solid var(--color-accent);
 	outline-offset: 1px;
 }
+/* More is a disclosure, not a choice: a dashed edge, and a chevron that turns over when open. */
+.type-tile-more {
+	border-style: dashed;
+	color: var(--color-ink-3);
+}
+.type-tile-more > svg {
+	transition: transform 150ms;
+}
+.type-tile-more[aria-expanded='true'] > svg {
+	transform: rotate(180deg);
+}
 .type-name {
+	flex: 1 1 auto;
+	min-width: 0;
 	font-family: var(--font-caption);
 	font-stretch: 87.5%;
 	font-weight: 600;
-	font-size: 0.56rem;
+	font-size: 0.62rem;
 	letter-spacing: 0.01em;
 	text-transform: uppercase;
 	line-height: 1.1;
-	text-align: center;
+	text-align: left;
 	/* A word longer than the tile shows an ellipsis inside the box, never letters outside it. */
-	max-width: 100%;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+/* Under about 280px of grid (the 18rem column, or a very small phone) a tile is under 84px: tighter tiles and the caption size the first design used, so "Contact" and "Location" still fit whole. */
+@container (max-width: 280px) {
+	.type-tile {
+		gap: 0.3rem;
+		padding-inline: 0.25rem;
+	}
+	.type-name {
+		font-size: 0.56rem;
+	}
+}
+
+/* Design menu (WS-C): the three-dot button in the Content heading and the card it opens. */
+.menu-trigger {
+	display: inline-grid;
+	place-items: center;
+	width: 2rem;
+	height: 2rem;
+	/* The heading's own height, so the button never makes the row taller. */
+	margin-block: -0.35rem;
+	border: 1px solid var(--color-rule);
+	border-radius: 7px;
+	background: var(--color-field);
+	box-shadow: var(--carve);
+	color: var(--color-ink-2);
+	cursor: pointer;
+	transition: border-color 120ms, color 120ms;
+}
+.menu-trigger:hover,
+.menu-trigger[aria-expanded='true'] {
+	border-color: var(--color-rule-2);
+	color: var(--color-ink);
+}
+/*
+ * The menu card: a modal <dialog>, like the colour picker, so a press outside lands on its
+ * backdrop and closes it without reaching whatever sits underneath. The dialog has no padding of
+ * its own, because a press on padding would report the dialog as the target and close the menu.
+ */
+.menu {
+	position: fixed;
+	margin: 0;
+	padding: 0;
+	width: 15rem;
+	border: 1px solid var(--color-rule-2);
+	border-radius: 10px;
+	background: var(--color-paper-2);
+	color: var(--color-ink);
+	box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 48px -16px rgb(0 0 0 / 0.9);
+}
+.menu::backdrop {
+	background: transparent;
+}
+.menu-list {
+	display: grid;
+	gap: 1px;
+	padding: 0.3rem;
+}
+.menu-item {
+	display: block;
+	width: 100%;
+	padding: 0.55rem 0.7rem;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--color-ink-2);
+	font: inherit;
+	font-size: 0.9rem;
+	text-align: left;
+	cursor: pointer;
+}
+.menu-item:hover:not(:disabled),
+.menu-item:focus-visible {
+	background: var(--color-paper-3);
+	color: var(--color-ink);
+}
+.menu-item:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: -2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+	.menu[open] {
+		animation: picker-in 120ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+	}
 }
 
 /*
@@ -1185,57 +1383,139 @@ a:hover {
 	outline-offset: -2px;
 }
 
-/* Size tiers: the Basic export panel's radio cards */
-.tier {
+/*
+ * Size tiers: Basic's print size, four tiles in a row (two by two when the picker is narrow) with
+ * one sentence under them. Keys cut into the slab like the type tiles; the chosen one is the raised
+ * limestone key. The picker answers to its own width, because the same column is 22 rem at 1440 px
+ * and 18 rem between lg and xl. The picker itself measures 321 px at 1440 and 1280 (four across),
+ * and 297 px on a 375 px phone, 281 px on a 359 px phone, and 253 px between lg and xl (two by
+ * two); 18.5 rem (314 px, the root is 17 px) sits between the two groups. Four across on a 375 px
+ * phone broke the chosen tile's bold "Medium" in the middle of the word.
+ */
+.tier-picker {
+	container: tier-picker / inline-size;
+}
+.tier-grid {
 	display: grid;
-	/* dot | description | size, so the figures line up down every card in the list */
-	grid-template-columns: auto minmax(0, 1fr) auto;
-	gap: 0.7rem;
-	align-items: start;
-	padding: 0.65rem 0.8rem;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.4rem;
+}
+@container tier-picker (min-width: 18.5rem) {
+	.tier-grid {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+}
+.tier-tile {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.12rem;
+	min-width: 0;
+	padding: 0.4rem 0.3rem 0.4rem;
 	border: 1px solid var(--color-rule);
-	border-radius: 8px;
+	border-radius: 7px;
 	background: var(--color-field);
 	box-shadow: var(--carve);
+	color: var(--color-ink-2);
+	text-align: center;
 	cursor: pointer;
-	transition: border-color 120ms, background 120ms, box-shadow 120ms;
+	transition: border-color 120ms, background 120ms, color 120ms, box-shadow 120ms;
 }
-.tier:hover {
+.tier-tile:hover {
 	border-color: var(--color-rule-2);
+	color: var(--color-ink);
 }
-.tier[data-on='true'] {
-	border-color: var(--color-accent);
-	background: linear-gradient(180deg, var(--color-accent-soft), color-mix(in oklab, var(--color-accent-soft) 60%, var(--color-field)));
-	box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-accent) 35%, transparent);
+.tier-tile[data-on='true'] {
+	border-color: #f5f2ea;
+	background: linear-gradient(180deg, #f3efe7, var(--color-stone));
+	color: var(--color-stone-ink);
+	box-shadow: inset 0 1px 0 white, 0 1px 0 rgb(0 0 0 / 0.6), 0 8px 16px -8px rgb(0 0 0 / 0.9);
 }
-.tier:has(:focus-visible) {
-	border-color: var(--color-accent);
-	box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 25%, transparent);
+.tier-name {
+	font-family: var(--font-display);
+	font-stretch: 125%;
+	font-weight: 600;
+	font-size: 0.72rem;
+	line-height: 1.15;
+	/* Break between words ("Extra / large"), never inside one. */
+	overflow-wrap: normal;
 }
-.tier-size {
-	display: grid;
-	justify-items: end;
-	gap: 0.1rem;
-	font-size: 0.7rem;
+.tier-use {
+	font-size: 0.72rem;
+	line-height: 1.2;
 	color: var(--color-ink-3);
+}
+.tier-tile[data-on='true'] .tier-use {
+	color: #5f5b55;
+}
+/* The figures sit at the foot of every tile, so they line up whether or not a name wraps. */
+.tier-size {
+	display: flex;
+	align-items: baseline;
+	justify-content: center;
+	gap: 0.3rem;
+	margin-top: auto;
+	padding-top: 0.1rem;
+	font-size: 0.68rem;
+	line-height: 1.25;
 	white-space: nowrap;
 }
-.tier[data-on='true'] .tier-size {
-	color: var(--color-ink-2);
+.tier-tile[data-on='true'] .tier-size {
+	color: var(--color-stone-ink);
 }
-.tier-dot {
-	margin-top: 0.3rem;
-	width: 0.85rem;
-	height: 0.85rem;
-	border-radius: 999px;
-	border: 1px solid var(--color-rule-2);
-	background: var(--color-paper-3);
-	transition: border 120ms;
+/* Four across, a tile is about 70 px: the millimetres and the inches go on two lines, no dot. */
+@container tier-picker (min-width: 18.5rem) {
+	.tier-tile:not(.tier-tile-custom) .tier-size {
+		flex-direction: column;
+		align-items: center;
+		gap: 0;
+	}
+	.tier-tile:not(.tier-tile-custom) .tier-sep {
+		display: none;
+	}
 }
-.tier[data-on='true'] .tier-dot {
-	border: 4px solid var(--color-accent);
-	background: var(--color-on-accent);
-	box-shadow: 0 0 10px color-mix(in oklab, var(--color-accent) 60%, transparent);
+/* A hand-set width: a row of its own, name left and figures right. */
+.tier-tile-custom {
+	grid-column: 1 / -1;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: baseline;
+	padding: 0.4rem 0.7rem;
+}
+.tier-tile-custom .tier-size {
+	margin-top: 0;
+	padding-top: 0;
+}
+/*
+ * Tight or too small for the content: a small mark in the corner, darker on the limestone key. The
+ * tile makes room above its name, because at 70 px wide a name such as "Medium" would run into it.
+ */
+.tier-tile:not(.tier-tile-custom):not([data-fit='good']) {
+	padding-top: 1.05rem;
+}
+.tier-mark {
+	position: absolute;
+	top: 0.25rem;
+	right: 0.25rem;
+	display: flex;
+	line-height: 0;
+}
+.tier-tile-custom .tier-mark {
+	position: static;
+	order: 2;
+}
+.tier-tile[data-fit='tight'] .tier-mark {
+	color: var(--color-warn);
+}
+.tier-tile[data-fit='small'] .tier-mark {
+	color: var(--color-block);
+}
+.tier-tile[data-on='true'][data-fit='tight'] .tier-mark {
+	color: #8a4d0c;
+}
+.tier-tile[data-on='true'][data-fit='small'] .tier-mark {
+	color: #a82f1b;
 }
 
 /* Badges */
@@ -1462,8 +1742,9 @@ a:hover {
 }
 
 /*
- * The primary nav on phones: one row that scrolls sideways, with the right edge faded to say so,
- * rather than seven links wrapping onto two lines above the fold.
+ * The primary nav on phones: one row, never wrapping onto two lines above the fold. Five links at
+ * 13 px with tight padding fit a 375 px screen whole; on anything narrower the row scrolls
+ * sideways, and the right edge is faded to say so.
  */
 .nav-scroll {
 	scrollbar-width: none;
@@ -1472,8 +1753,22 @@ a:hover {
 	display: none;
 }
 @media (max-width: 767px) {
+	/* 13 px, not a rem: the root is larger than 16 px, and the width to fit is a phone's, in pixels. */
+	.nav-scroll {
+		font-size: 13px;
+		column-gap: 0;
+		/* Room for the focus ring and no more: the row fits 375 px with a few pixels to spare. */
+		padding-inline: 2px;
+	}
 	.nav-scroll {
 		mask-image: linear-gradient(to right, black calc(100% - 1.5rem), transparent);
+	}
+	.nav-scroll .nav-link {
+		padding-inline: 0.25rem;
+	}
+	.nav-scroll .nav-link[aria-current='page']::after {
+		left: 0.25rem;
+		right: 0.25rem;
 	}
 }
 .nav-link {
@@ -1505,6 +1800,79 @@ a:hover {
 	box-shadow: 0 0 8px color-mix(in oklab, var(--color-accent) 70%, transparent);
 }
 
+/* Design tabs (WS-A): the Style / Logo / Artistic QR list heading the design sheet. The selected
+ * tab takes the same copper cut as the current page in the nav, sitting on the list's rule; the
+ * type is the heading face at the weight of the panel headings the tabs replaced. */
+.tabs {
+	display: flex;
+	flex-wrap: wrap;
+	/* Three tabs, each with a dot, still share one row in the 18rem column (253 px inside its padding). */
+	gap: 0 0.85rem;
+	border-bottom: 1px solid var(--color-rule);
+}
+.tab {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.3rem 0 0.65rem;
+	border: 0;
+	background: transparent;
+	color: var(--color-ink-2);
+	font-family: var(--font-display);
+	font-stretch: 125%;
+	font-weight: 700;
+	font-size: 0.92rem;
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: color 120ms;
+}
+.tab:hover,
+.tab[aria-selected='true'] {
+	color: var(--color-ink);
+}
+.tab[aria-selected='true']::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -1px;
+	height: 2px;
+	border-radius: 2px;
+	background: var(--color-accent);
+	box-shadow: 0 0 8px color-mix(in oklab, var(--color-accent) 70%, transparent);
+}
+/* Switched off by Artistic QR: still a tab you can open, but plainly not in force. */
+.tab-off,
+.tab-off:hover,
+.tab-off[aria-selected='true'] {
+	color: var(--color-ink-3);
+}
+.tab-off .tab-label {
+	text-decoration: line-through;
+	text-decoration-thickness: 1.5px;
+}
+/* Something is set inside. */
+.tab-dot {
+	width: 0.42rem;
+	height: 0.42rem;
+	border-radius: 50%;
+	background: var(--color-accent);
+	box-shadow: 0 0 6px color-mix(in oklab, var(--color-accent) 60%, transparent);
+}
+.tab-off .tab-dot {
+	opacity: 0.55;
+}
+.tabs-also {
+	margin-top: 0.85rem;
+	line-height: 1.5;
+}
+.tabs-panel {
+	margin-top: 1.1rem;
+}
+
 /*
  * The prerendered generator is Basic. When app.html has stamped a saved Advanced choice on
  * <html>, the tool and its toggle stay invisible (space kept, so nothing moves) until the
@@ -1516,6 +1884,80 @@ html[data-mode='advanced']:not([data-hydrated]) :is(#generator, .seg[aria-label=
 }
 
 /* Reduced chrome on print: paper again, whatever the screen palette. */
+/* Inspector (WS-G): what the code contains, under the preview, and the stress-test readout. */
+.inspector {
+	display: grid;
+	gap: 0.5rem;
+}
+.inspector-line {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	min-width: 0;
+	padding-inline: 0.25rem;
+}
+.inspector-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	color: var(--color-ink-2);
+}
+.inspector-toggle {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	min-height: 1.75rem;
+	padding: 0 0.25rem;
+	font-size: 0.78rem;
+	color: var(--color-ink-2);
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 3px;
+	text-decoration-color: var(--color-rule-2);
+	cursor: pointer;
+	transition: color 120ms, text-decoration-color 120ms;
+}
+.inspector-toggle:hover {
+	color: var(--color-ink);
+	text-decoration-color: var(--color-ink-3);
+}
+.inspector-toggle > svg {
+	transition: transform 120ms;
+}
+.inspector-toggle[aria-expanded='true'] > svg {
+	transform: rotate(180deg);
+}
+/* Carved into the slab like a field, because it is the code's content laid out to be read and copied. */
+.inspector-full {
+	display: grid;
+	gap: 0.4rem;
+	padding: 0.6rem 0.75rem;
+	background: var(--color-field);
+	border: 1px solid var(--color-rule);
+	border-radius: 6px;
+	box-shadow: var(--carve);
+}
+.inspector-payload {
+	max-width: none;
+	max-height: 12rem;
+	overflow: auto;
+	font-family: var(--font-mono);
+	font-size: 0.78rem;
+	line-height: 1.5;
+	color: var(--color-ink);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	user-select: text;
+}
+.stress-note {
+	max-width: none;
+}
+
 @media print {
 	:root {
 		--color-paper: #ffffff;

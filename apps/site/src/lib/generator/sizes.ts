@@ -8,6 +8,8 @@ import { moduleMm, maxScanDistanceM, MODULE_MM_GOOD, MODULE_MM_WARN } from '@sto
 export interface SizeTier {
 	id: 'small' | 'medium' | 'large' | 'xl';
 	name: string;
+	/** One word of use, for the tile: what the size is usually printed on. */
+	short: string;
 	/** Print width of the code, quiet zone included, in mm. */
 	mm: number;
 	/** Where a code this size usually ends up. */
@@ -17,10 +19,10 @@ export interface SizeTier {
 }
 
 export const SIZE_TIERS: readonly SizeTier[] = [
-	{ id: 'small', name: 'Small', mm: 25, uses: 'Business cards, stickers, product labels.', reads: 'Read in the hand' },
-	{ id: 'medium', name: 'Medium', mm: 50, uses: 'Flyers, menus, table tents, handouts.', reads: 'Read across a table' },
-	{ id: 'large', name: 'Large', mm: 100, uses: 'Posters, door and counter signs.', reads: 'Read from a few steps back' },
-	{ id: 'xl', name: 'Extra large', mm: 300, uses: 'Banners, storefront and lobby signs.', reads: 'Read from across a room' }
+	{ id: 'small', name: 'Small', short: 'cards', mm: 25, uses: 'Business cards, stickers, product labels.', reads: 'Read in the hand' },
+	{ id: 'medium', name: 'Medium', short: 'flyers', mm: 50, uses: 'Flyers, menus, table tents, handouts.', reads: 'Read across a table' },
+	{ id: 'large', name: 'Large', short: 'posters', mm: 100, uses: 'Posters, door and counter signs.', reads: 'Read from a few steps back' },
+	{ id: 'xl', name: 'Extra large', short: 'banners', mm: 300, uses: 'Banners, storefront and lobby signs.', reads: 'Read from across a room' }
 ];
 
 /** The tier whose width matches `widthMm`, or null when the width was set by hand. */

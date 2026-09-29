@@ -44,15 +44,14 @@
 			<li>Static codes are the default and they never leave your browser. Read the <a href="/open-source">source</a> to verify it.</li>
 			<li>Every download is decoded again on your device before the button turns on, so what you print is what a phone will read.</li>
 			<li>The <a href="/print-size">sizing panel</a> tells you when a code is too small for the distance it will be scanned from.</li>
-			<li>Vector exports (SVG, PDF, EPS) with real millimetre dimensions, so a print shop can use them directly.</li>
+			<li>Vector exports (SVG, and PDF and EPS for the plain style; EPS is in Advanced) with real millimetre dimensions, so a print shop can use them directly.</li>
 		</ul>
 
 		<h2>If you need an editable code</h2>
 		<p>
 			Sometimes the destination has to change after printing. The honest way to do that is a
 			short link on a domain you control, or on a service whose terms you have read, encoded as a
-			plain URL here. The code itself is then permanent; only the link behind it changes. A
-			built-in hand-off to a link service is planned, but StoneQR ships without one for now.
+			plain URL here. The code itself is then permanent; only the link behind it changes.
 		</p>
 
 		<h2>The short version</h2>

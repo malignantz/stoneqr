@@ -70,6 +70,13 @@ export const OG_ROUTES = [
 		kicker: 'QR CODE SIZE CALCULATOR · STONEQR.APP'
 	},
 	{
+		slug: 'scan',
+		path: '/scan',
+		headline: 'See what a QR code holds before you open it.',
+		sub: 'Read a code from a picture on your device: the exact text, never opened, and a note when it goes through a redirect.',
+		kicker: 'QR CODE READER · FREE · NO SIGN-UP'
+	},
+	{
 		slug: 'compare',
 		path: '/compare',
 		headline: 'What the free tier actually gives you.',

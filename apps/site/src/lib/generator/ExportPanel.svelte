@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount, untrack } from 'svelte';
 	import { exportPng, exportEps, setPngDpi, fromMm, formatMm, minWidthMmForDistance, maxScanDistanceM, type Ecc } from '@stoneqr/engine';
 	import { downloadText, downloadBytes, copyPngToClipboard, slug } from '$lib/download';
 	import { svgToCanvas, canvasToPngBlob } from '$lib/svg-raster';
@@ -6,10 +7,9 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import PreviewBar from '$lib/components/PreviewBar.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import TierPicker from '$lib/components/TierPicker.svelte';
 	import { describe, type Design } from './state.svelte';
-	import { snapshot, compact, encodeHash } from './persist';
-	import { defaults } from './defaults';
-	import { SIZE_TIERS, tierFor, tierFit, tierDistance, formatDistance, formatIn } from './sizes';
+	import { SIZE_TIERS, tierFor, formatDistance } from './sizes';
 	import { halftonePngSize } from './halftone-png';
 	import { testSheetSizes, testSheetPage } from './test-sheet';
 
@@ -22,11 +22,9 @@
 	/** Physical width of the styled artwork: the code width plus the frame when there is one. */
 	const artWidthMm = $derived(design.widthMm * (design.styled ? design.styledScale : 1));
 
-	// Basic mode: four named sizes instead of a width field. A width set by hand in Advanced
-	// shows up as a fifth, "Custom" row so nothing is silently in force.
+	// Basic mode: four named sizes (TierPicker) instead of a width field. A width set by hand in
+	// Advanced shows up there as a fifth, "Custom" tile so nothing is silently in force.
 	const tier = $derived(tierFor(design.widthMm));
-	const fitOf = (mm: number) => (design.encoded ? tierFit(mm, design.encoded.size, design.quietZone) : 'good');
-	const fitLabel = { good: '', tight: 'Tight for this content', small: 'Too small for this content' } as const;
 	function pickTier(mm: number) {
 		design.unit = 'mm';
 		design.width = mm;
@@ -43,6 +41,16 @@
 		design.status === 'print-safe' ? 'badge-ok' : design.status === 'scannable' ? 'badge-muted' : design.status === 'risky' ? 'badge-warn' : 'badge-block'
 	);
 	const eccs: Ecc[] = ['L', 'M', 'Q', 'H'];
+	/**
+	 * The Encoding fold starts open only when something in it is not the default, so a changed
+	 * setting is never hidden; after that the header owns the boolean. Read once, at mount.
+	 */
+	let encodingOpen = $state(
+		untrack(() => design.eccChoice !== 'M' || design.quietZone !== 4 || design.minVersion !== 1 || design.mask !== 'auto')
+	);
+	const encodingSummary = $derived(
+		`${design.ecc} · quiet ${design.quietZone} · mask ${design.mask}${design.minVersion > 1 ? ` · v${design.minVersion}` : ''}`
+	);
 
 	const halftoneOnly = 'Artistic QR downloads as PNG or SVG';
 	/** The Artistic QR PNG's pixel size and the dpi that prints it at the chosen width (see `halftone-png.ts`). */
@@ -184,41 +192,58 @@
 		});
 
 	/**
-	 * The share link: the design's settings and typed content, deflated into the URL fragment. A
-	 * fragment never reaches a server, so the promise under the buttons holds; what it does reach
-	 * is whoever the link is sent to, which the hint says plainly.
+	 * The PNG that Copy and Share hand over: the preview's own raster for Artistic QR, otherwise the
+	 * styled or plain SVG drawn at 1024 px. One function so the two buttons can never disagree.
 	 */
-	let shareLink = $state('');
-	let shareCopied = $state(false);
-	const share = () =>
-		run('share', async () => {
-			const hash = await encodeHash(compact(snapshot(design), defaults()));
-			shareLink = `${location.origin}/${hash}`;
-			try {
-				await navigator.clipboard.writeText(shareLink);
-				shareCopied = true;
-				setTimeout(() => (shareCopied = false), 1600);
-			} catch {
-				/* no clipboard access: the link is shown below to copy by hand */
-			}
-		});
-	const hasPictures = $derived(!!design.logo || !!design.halftoneImage);
+	async function previewPng(): Promise<Blob> {
+		if (design.halftoneActive && design.halftoneRaster) {
+			const { rasterToPngBlob } = await import('$lib/halftone');
+			return rasterToPngBlob(design.halftoneRaster);
+		}
+		return canvasToPngBlob(await svgToCanvas(svgText, 1024, design.transparentBg ? undefined : design.bg));
+	}
 
 	const copy = () =>
 		run('copy', async () => {
-			const px = 1024;
-			let blob: Blob;
-			if (design.halftoneActive && design.halftoneRaster) {
-				const { rasterToPngBlob } = await import('$lib/halftone');
-				blob = await rasterToPngBlob(design.halftoneRaster);
-			} else {
-				blob = await canvasToPngBlob(await svgToCanvas(svgText, px, design.transparentBg ? undefined : design.bg));
-			}
-			const ok = await copyPngToClipboard(blob);
+			const ok = await copyPngToClipboard(await previewPng());
 			if (!ok) throw new Error('Clipboard images are not supported in this browser. Download the PNG instead.');
 			copied = true;
 			setTimeout(() => (copied = false), 1600);
 		});
+
+	/**
+	 * Whether Share replaces Copy: the browser can put a PNG file in the system share sheet and the
+	 * main pointer is a finger. Desktop Chrome and Edge report the share sheet as available too, but
+	 * a laptop user wants the one-click copy, so only touch devices switch. Decided once after
+	 * mount, never while prerendering, so the static page always says Copy. The empty File is only
+	 * a probe for the type.
+	 */
+	let canShare = $state(false);
+	onMount(() => {
+		canShare =
+			matchMedia('(pointer: coarse)').matches &&
+			typeof navigator.share === 'function' &&
+			!!navigator.canShare?.({ files: [new File([], 'x.png', { type: 'image/png' })] });
+	});
+
+	/**
+	 * Hands the same PNG as Copy to the share sheet, so the code was decoded before it leaves.
+	 * Nothing is sent by the page: the sheet is the user's own action. Closing it is not an error.
+	 */
+	const share = async () => {
+		let failed = '';
+		await run('share', async () => {
+			const blob = await previewPng();
+			try {
+				await navigator.share({ files: [new File([blob], `${name}.png`, { type: 'image/png' })], title: `QR code: ${describe(design.type)}` });
+			} catch (e) {
+				if (e instanceof DOMException && e.name === 'AbortError') return;
+				failed = `Sharing did not work${e instanceof Error && e.message ? ` (${e.message})` : ''}. Download the PNG instead.`;
+			}
+		});
+		// After run(), which clears the notice when it starts and would word this as a file that failed to build.
+		if (failed) exportError = failed;
+	};
 
 	// The dynamic hand-off to SignUpCity (plan §9) is shelved for now: the link service is on
 	// the back burner. The `?short=` return leg in Generator.svelte and the notice in ContentForm
@@ -232,9 +257,10 @@
 		{/snippet}
 	</SectionHeader>
 
-	<!-- Print size: how big it will be, and whether that still scans. -->
+	<!-- Print size: how big it will be, and whether that still scans. Basic's tiles name themselves,
+	     so only Advanced, with three groups to tell apart, carries the subheads. -->
 	<div class="grid gap-3">
-		<p class="subhead">Print size</p>
+		{#if advanced}<p class="subhead">Print size</p>{/if}
 		{#if advanced}
 			<div class="grid grid-cols-[1fr_auto] gap-3">
 				<div class="field">
@@ -273,48 +299,7 @@
 				/>
 			</div>
 		{:else}
-			<fieldset class="m-0 grid gap-2 border-0 p-0">
-				<legend class="sr-only">How big will it be printed?</legend>
-				{#each SIZE_TIERS as t (t.id)}
-					{@const fit = fitOf(t.mm)}
-					{@const on = tier?.id === t.id}
-					<label class="tier" data-on={on}>
-						<input type="radio" name="size-tier" class="sr-only" value={t.id} checked={on} onchange={() => pickTier(t.mm)} />
-						<span class="tier-dot" aria-hidden="true"></span>
-						<span class="grid min-w-0 gap-0.5">
-							<span class="font-medium">{t.name}</span>
-							<span class="text-sm text-ink-2">{t.uses}</span>
-							<span class="text-xs text-ink-3">{tierDistance(t)}.</span>
-							{#if fit !== 'good'}
-								<span class="text-xs font-medium {fit === 'small' ? 'text-block' : 'text-warn'}">{fitLabel[fit]}</span>
-							{/if}
-						</span>
-						<!-- Its own column, so the figures line up down all four cards. -->
-						<span class="tier-size">
-							<span class="num">{t.mm} mm</span>
-							<span class="num">{formatIn(t.mm)} in</span>
-						</span>
-					</label>
-				{/each}
-				{#if !tier}
-					{@const fit = fitOf(design.widthMm)}
-					<label class="tier" data-on={true}>
-						<input type="radio" name="size-tier" class="sr-only" value="custom" checked />
-						<span class="tier-dot" aria-hidden="true"></span>
-						<span class="grid min-w-0 gap-0.5">
-							<span class="font-medium">Custom</span>
-							<span class="text-sm text-ink-2">Set in Advanced. Pick a size above to replace it.</span>
-							{#if fit !== 'good'}
-								<span class="text-xs font-medium {fit === 'small' ? 'text-block' : 'text-warn'}">{fitLabel[fit]}</span>
-							{/if}
-						</span>
-						<span class="tier-size">
-							<span class="num">{formatMm(design.widthMm)} mm</span>
-							<span class="num">{formatIn(design.widthMm, true)} in</span>
-						</span>
-					</label>
-				{/if}
-			</fieldset>
+			<TierPicker widthMm={design.widthMm} size={design.encoded?.size ?? null} quiet={design.quietZone} onpick={pickTier} />
 		{/if}
 
 		{#if design.styled && design.styledScale > 1}
@@ -349,71 +334,83 @@
 	<!-- Encoding: how the symbol itself is built. Advanced only. -->
 	{#if advanced}
 		<div class="grid gap-3">
-			<p class="subhead">Encoding</p>
-			<div class="field">
-				<span class="label">Error correction</span>
-				<div class="seg justify-self-start" role="group" aria-label="Error correction">
-					{#each eccs as e (e)}
-						<button
-							type="button"
-							aria-pressed={design.ecc === e}
-							disabled={!!design.logo || design.halftoneActive}
-							onclick={() => (design.eccChoice = e)}>{e}</button
-						>
-					{/each}
+			<!-- Folded unless something in it is not the default; the summary says what is set. -->
+			<SectionHeader
+				title="Encoding"
+				level={3}
+				collapsible
+				bind:open={encodingOpen}
+				summary={encodingSummary}
+				controls="encoding-body"
+			/>
+			{#if encodingOpen}
+				<div id="encoding-body" class="grid gap-3">
+				<div class="field">
+					<span class="label">Error correction</span>
+					<div class="seg justify-self-start" role="group" aria-label="Error correction">
+						{#each eccs as e (e)}
+							<button
+								type="button"
+								aria-pressed={design.ecc === e}
+								disabled={!!design.logo || design.halftoneActive}
+								onclick={() => (design.eccChoice = e)}>{e}</button
+							>
+						{/each}
+					</div>
+					<p class="hint">
+						{design.halftoneActive
+							? 'Forced to H while a picture is blended in.'
+							: design.logo
+								? 'Forced to H while a logo is present, so the hidden modules can be rebuilt.'
+								: { L: 'Survives 7% damage. Smallest code.', M: 'Survives 15%. The sensible default.', Q: 'Survives 25%.', H: 'Survives 30%. Needed for logos.' }[design.ecc]}
+					</p>
 				</div>
-				<p class="hint">
-					{design.halftoneActive
-						? 'Forced to H while a picture is blended in.'
-						: design.logo
-							? 'Forced to H while a logo is present, so the hidden modules can be rebuilt.'
-							: { L: 'Survives 7% damage. Smallest code.', M: 'Survives 15%. The sensible default.', Q: 'Survives 25%.', H: 'Survives 30%. Needed for logos.' }[design.ecc]}
-				</p>
-			</div>
 
-			<!-- Three across only once there is room; between lg and xl the column is ~306 px and the
-			     mask select loses its own word. -->
-			<div class="grid grid-cols-2 gap-3 xl:grid-cols-3">
-				<div class="field">
-					<label for="quiet">Quiet zone</label>
-					<input id="quiet" class="input num" type="number" min="0" max="10" step="1" bind:value={design.quietZone} />
+				<!-- Three across only once there is room; between lg and xl the column is ~306 px and the
+				     mask select loses its own word. -->
+				<div class="grid grid-cols-2 gap-3 xl:grid-cols-3">
+					<div class="field">
+						<label for="quiet">Quiet zone</label>
+						<input id="quiet" class="input num" type="number" min="0" max="10" step="1" bind:value={design.quietZone} />
+					</div>
+					<div class="field">
+						<label for="minv">Min version</label>
+						<input
+							id="minv"
+							class="input num"
+							type="number"
+							min="1"
+							max="40"
+							step="1"
+							bind:value={design.minVersion}
+							disabled={design.halftoneActive}
+							title={design.halftoneActive ? 'Artistic QR sets its own minimum version' : ''}
+						/>
+					</div>
+					<div class="field col-span-2 xl:col-span-1">
+						<label for="mask">Mask</label>
+						<select
+							id="mask"
+							class="select"
+							value={String(design.mask)}
+							onchange={(e) => {
+								const v = e.currentTarget.value;
+								design.mask = v === 'auto' ? 'auto' : Number(v);
+							}}
+						>
+							<option value="auto">Auto</option>
+							{#each [0, 1, 2, 3, 4, 5, 6, 7] as m (m)}<option value={String(m)}>{m}</option>{/each}
+						</select>
+					</div>
 				</div>
-				<div class="field">
-					<label for="minv">Min version</label>
-					<input
-						id="minv"
-						class="input num"
-						type="number"
-						min="1"
-						max="40"
-						step="1"
-						bind:value={design.minVersion}
-						disabled={design.halftoneActive}
-						title={design.halftoneActive ? 'Artistic QR sets its own minimum version' : ''}
-					/>
 				</div>
-				<div class="field col-span-2 xl:col-span-1">
-					<label for="mask">Mask</label>
-					<select
-						id="mask"
-						class="select"
-						value={String(design.mask)}
-						onchange={(e) => {
-							const v = e.currentTarget.value;
-							design.mask = v === 'auto' ? 'auto' : Number(v);
-						}}
-					>
-						<option value="auto">Auto</option>
-						{#each [0, 1, 2, 3, 4, 5, 6, 7] as m (m)}<option value={String(m)}>{m}</option>{/each}
-					</select>
-				</div>
-			</div>
+			{/if}
 		</div>
 	{/if}
 
 	<!-- Files: one obvious download, then the rest in one uniform row. -->
 	<div class="grid gap-2">
-		<p class="subhead mb-1">Files</p>
+		{#if advanced}<p class="subhead mb-1">Files</p>{/if}
 		{#if advanced}
 			<button type="button" class="btn btn-accent btn-stack" disabled={!canExport || busy === 'svg'} onclick={svg}>
 				<span>Download SVG</span><span class="ticket text-paper/70">vector</span>
@@ -471,7 +468,7 @@
 				</p>
 			</div>
 		{:else}
-			<!-- Basic: one obvious download, two for specialists, each saying who it is for. -->
+			<!-- Basic: one obvious download, then PDF, SVG, and Copy (Share where the browser has a share sheet) in one row of equal buttons. -->
 			<button type="button" class="btn btn-accent btn-stack" disabled={!canExport || busy === 'png'} onclick={png} aria-live="polite">
 				{#if busy === 'png' && pngProgress}
 					{pngProgress}
@@ -479,7 +476,7 @@
 					<span>Download PNG</span><span class="ticket num text-paper/70">{pngPx} px</span>
 				{/if}
 			</button>
-			<div class="grid grid-cols-2 gap-2">
+			<div class="grid grid-cols-3 gap-2">
 				<button
 					type="button"
 					class="btn btn-secondary btn-stack"
@@ -492,11 +489,26 @@
 				<button type="button" class="btn btn-secondary btn-stack" disabled={!canExport || busy === 'svg'} onclick={svg}>
 					<span>SVG</span><span class="ticket">vector</span>
 				</button>
+				{#if canShare}
+					<button type="button" class="btn btn-secondary btn-stack" disabled={!canExport || busy === 'share'} onclick={share}>
+						<span>Share</span><span class="ticket">PNG</span>
+					</button>
+				{:else}
+					<button type="button" class="btn btn-secondary btn-stack" disabled={!canExport || busy === 'copy'} onclick={copy} aria-live="polite">
+						<span>{copied ? 'Copied' : 'Copy'}</span><span class="ticket">PNG</span>
+					</button>
+				{/if}
 			</div>
-			<button type="button" class="btn btn-secondary btn-sm" disabled={!canExport || busy === 'copy'} onclick={copy}>
-				{copied ? 'Copied' : 'Copy to clipboard'}
-			</button>
-			<p class="hint text-center">PNG for documents, slides, and the web. PDF for print shops. SVG for designers.</p>
+			<p class="hint text-center">
+				Printing a lot of them?
+				<button
+					type="button"
+					class="cursor-pointer text-ink-2 underline underline-offset-2 hover:text-ink disabled:cursor-not-allowed disabled:no-underline"
+					disabled={!canExport || busy === 'sheet' || design.halftoneActive}
+					title={design.halftoneActive ? halftoneOnly : ''}
+					onclick={testSheet}>Print a test sheet first</button
+				>.
+			</p>
 		{/if}
 		{#if design.encoded && !canExport}
 			<p class="hint">
@@ -510,21 +522,6 @@
 			</p>
 		{/if}
 		<p class="text-center text-xs text-ink-3">{SITE.promise}</p>
-	</div>
-
-	<hr class="rule" />
-
-	<div class="grid gap-2">
-		<p class="ticket">Share this design</p>
-		<button type="button" class="btn btn-secondary btn-sm" disabled={busy === 'share'} onclick={share}>
-			{shareCopied ? 'Link copied' : 'Copy a link to this design'}
-		</button>
-		{#if shareLink}
-			<input class="input num text-xs" type="text" readonly aria-label="Share link" value={shareLink} onfocus={(e) => e.currentTarget.select()} />
-		{/if}
-		<p class="hint">
-			Opens StoneQR with these settings and this content, including anything typed here{design.type === 'wifi' ? ', the WiFi password too' : ''}. The link is not sent to StoneQR; it lives only with whoever you give it to.{#if hasPictures}{' '}Pictures are not included; send them separately.{/if}
-		</p>
 	</div>
 </section>
 

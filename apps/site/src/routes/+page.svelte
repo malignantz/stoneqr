@@ -8,15 +8,12 @@
 <Seo
 	title={SITE.name}
 	schema={[APP_SCHEMA]}
-	description="Free QR code generator with no sign-up and no expiry. Codes are generated in your browser and never uploaded. Vector SVG, PDF, and EPS exports, print-size calculator, logos, artistic QR codes, and decode verification." />
+	description="Free QR code generator with no sign-up and no expiry. Codes are generated in your browser and never uploaded. SVG and PDF exports (EPS in Advanced), print-size calculator, logos, artistic QR codes, and decode verification." />
 
 <Generator>
 	{#snippet hero()}
-	<h1 class="reveal hero-cut"><span class="cut">QR codes</span> <span class="cut-hollow">set in stone.</span></h1>
-	<p class="reveal reveal-2 mt-4 max-w-2xl text-lg text-ink-2">
-		Generated in your browser, never uploaded, never expire. <span class="hidden sm:inline">Vector files
-		with real millimetre sizes, a print-size check, and a decode test before every download.</span>
-	</p>
+	<h1 class="reveal hero-cut hero-tool"><span class="cut">QR codes</span> <span class="cut-hollow">set in stone.</span></h1>
+	<p class="reveal reveal-2 mt-3 max-w-2xl text-lg text-ink-2">Generated in your browser, never uploaded, never expire.</p>
 	{/snippet}
 </Generator>
 
@@ -41,9 +38,10 @@
 				<p class="numeral" aria-hidden="true">01</p>
 				<h3 class="mt-4">Made for printing</h3>
 				<p class="mt-3 text-[0.95rem] text-ink-2">
-					Choose a print width and the panel tells you the module size, how far away the code can be
-					read from, and when the content is too long for the space. Download SVG, PDF (with 100% K
-					black), EPS, or PNG at 300 dpi with the resolution recorded in the file. The
+					Choose a print width and the panel tells you how far away the code can be read from and
+					when the content is too long for the space; Advanced adds the module size. Download SVG, PDF (100% K black
+					for the plain style), PNG at 300 dpi with the resolution recorded in the file, or, in
+					Advanced, EPS. The
 					<a href="/print-size">print-size calculator</a> is also available on its own page, and a
 					one-page test sheet prints the code at four sizes so you can scan before ordering signage.
 				</p>

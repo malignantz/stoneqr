@@ -4,9 +4,10 @@
 	import { renderStyled } from '$lib/styled';
 	import { svgToCanvas, canvasImageData } from '$lib/svg-raster';
 	import { cropLogo, isFullCrop } from '$lib/logo-crop';
-	import { SITE } from '$lib/site';
 	import Icon from '$lib/components/Icon.svelte';
+	import Inspector from './Inspector.svelte';
 	import { describe, type Design } from './state.svelte';
+	import type { StressSummary } from './stress';
 	import { fingerprint, keyOf, verdicts, styledRenders, halftoneRenders, halftoneWeight } from './memo';
 
 	let { design, advanced = false }: { design: Design; advanced?: boolean } = $props();
@@ -311,6 +312,67 @@
 		return () => clearTimeout(t);
 	});
 
+	/**
+	 * "Test it harder" (Advanced): the artwork that passed the check above, decoded again small,
+	 * blurred, dim, tilted, sheared, and small and blurred. Advice from a simulation on this
+	 * device, so it never touches `design.verify` and is never remembered in `memo.ts`; the whole
+	 * of it (image operations, the six conditions, the sentence) is `stress.ts`, loaded only when
+	 * the button is pressed.
+	 */
+	type Stress = { phase: 'idle' } | { phase: 'running'; done: number; total: number } | { phase: 'done'; summary: StressSummary } | { phase: 'error' };
+	let stress = $state<Stress>({ phase: 'idle' });
+	let stressRun = 0;
+
+	// A result is about one picture. Anything that changes what was decoded, or the check on it
+	// starting over, retires the result and stops a run that is still going.
+	$effect(() => {
+		void [design.payload, design.encoded, design.styledSvg, design.halftoneRaster, design.styled, design.halftoneActive, design.fg, design.bgColor, design.quietZone, design.verify];
+		untrack(() => {
+			stressRun++;
+			stress = { phase: 'idle' };
+		});
+	});
+
+	/** The picture to degrade, at a known number of pixels a module: what the normal check decoded, or its source. */
+	async function stressArtwork(modulePx: (widthPx: number, size: number, quietZone: number, scale?: number) => number) {
+		const qr = design.encoded!;
+		const quietZone = design.quietZone;
+		if (design.halftoneActive) {
+			const raster = design.halftoneRaster;
+			if (!raster) throw new Error('The Artistic QR picture is not ready.');
+			return { image: raster, px: modulePx(raster.width, qr.size, quietZone) };
+		}
+		if (design.styled) {
+			const scale = design.styledScale;
+			const canvas = await svgToCanvas(design.styledSvg, Math.round((qr.size + 2 * quietZone) * 8 * scale));
+			return { image: canvasImageData(canvas), px: modulePx(canvas.width, qr.size, quietZone, scale) };
+		}
+		const bg = design.bgColor;
+		const image = rasterize(qr, { pxPerModule: 8, quietZone, fg: hexToRgb(design.fg), bg: bg === 'transparent' ? [255, 255, 255] : hexToRgb(bg) });
+		return { image, px: 8 };
+	}
+
+	async function testHarder() {
+		if (design.verify !== 'ok' || !design.encoded || stress.phase === 'running') return;
+		const run = ++stressRun;
+		const payload = design.payload;
+		stress = { phase: 'running', done: 0, total: 6 };
+		try {
+			const { runStress, modulePx, summarise } = await import('./stress');
+			const { image, px } = await stressArtwork(modulePx);
+			const results = await runStress(image, px, async (img) => (await verifyRasterAsync(img, payload)).ok, {
+				onProgress: (done, total) => {
+					if (run === stressRun) stress = { phase: 'running', done, total };
+				},
+				cancelled: () => run !== stressRun
+			});
+			if (run !== stressRun || !results) return;
+			stress = { phase: 'done', summary: summarise(results) };
+		} catch {
+			if (run === stressRun) stress = { phase: 'error' };
+		}
+	}
+
 	function hexToRgb(hex: string): [number, number, number] {
 		const m = hex.replace('#', '');
 		const n = m.length === 3 ? m.split('').map((c) => c + c).join('') : m.slice(0, 6);
@@ -433,6 +495,8 @@
 	  The figures are Advanced only: version, module count, and ECC are the numbers Basic keeps
 	  out of sight, and the size list already says what the module size means in words.
 	-->
+	<Inspector {design} {advanced} />
+
 	{#if design.encoded && advanced}
 		<!-- Four across, except between lg and xl where the preview column is at its narrowest and
 		     the module figure would break across two lines. -->
@@ -442,9 +506,33 @@
 			<div><dt class="ticket">ECC</dt><dd class="num">{design.ecc}</dd></div>
 			<div><dt class="ticket">Module</dt><dd class="num">{design.moduleMm.toFixed(2)} mm</dd></div>
 		</dl>
-	{/if}
 
-	<!-- On a phone this is the first reassurance after the code appears; on a desktop the same
-	     line sits under the download buttons a column away, so it shows once. -->
-	<p class="text-center text-xs text-ink-3 lg:hidden">{SITE.promise}</p>
+		<div class="grid gap-2">
+			<button
+				type="button"
+				class="btn btn-secondary btn-sm w-full"
+				disabled={design.verify !== 'ok'}
+				aria-busy={stress.phase === 'running'}
+				title={design.verify === 'ok' ? undefined : 'Available once the code has decoded.'}
+				onclick={testHarder}
+			>
+				{stress.phase === 'running' ? `Testing… ${stress.done} of ${stress.total}` : 'Test it harder'}
+			</button>
+			<div role="status" aria-live="polite">
+				{#if stress.phase === 'done'}
+					{@const s = stress.summary}
+					<div class="notice text-sm {s.missed.length ? '' : 'notice-info'}">
+						<p class="stress-note">
+							<b class="font-semibold">{s.headline}.</b>
+							{s.detail}
+							{#if s.missed.length}Higher contrast and a plainer design help.{/if}
+						</p>
+						<p class="stress-note text-xs text-ink-3">A simulation on this device, not a promise about every phone.</p>
+					</div>
+				{:else if stress.phase === 'error'}
+					<p class="notice notice-warn text-sm">The test could not run on this picture.</p>
+				{/if}
+			</div>
+		</div>
+	{/if}
 </section>

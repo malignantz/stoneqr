@@ -22,7 +22,7 @@
 		<ol>
 			<li>Open this site, then open your browser's developer tools and switch to the Network tab.</li>
 			<li>Type a WiFi password or a phone number into the generator and download a file.</li>
-			<li>Watch the Network tab: the only requests are the page's own scripts, styles, and fonts, all loaded before you typed anything. No request carries your content.</li>
+			<li>Watch the Network tab: the requests are the page's own scripts, styles, and fonts, all loaded before you typed anything, plus the Cloudflare Web Analytics beacon, which counts page views without cookies and carries no content. No request carries what you typed.</li>
 			<li>For a stronger check, load the page, disconnect from the internet, and keep generating. Everything still works.</li>
 		</ol>
 
@@ -37,7 +37,7 @@
 		<p>
 			Encoding uses <code>uqr</code>, a port of Nayuki's reference QR encoder. Verification decodes
 			every export with <code>@paulmillr/qr</code>. Styled shapes and logos use
-			<code>@liquid-js/qr-code-styling</code>, loaded only when you open the style panel. PDFs are
+			<code>@liquid-js/qr-code-styling</code>, loaded only when you open the Style or Logo tab. PDFs are
 			built with <code>pdf-lib</code>. EPS and PNG resolution metadata are hand-written.
 		</p>
 

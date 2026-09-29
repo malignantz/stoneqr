@@ -1,16 +1,31 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { contrastRatio, paperColor } from '@stoneqr/engine';
-	import { preloadStyled, FRAME, type CornerDotStyle, type CornerSquareStyle, type DotStyle } from '$lib/styled';
+	import { preloadStyled, FRAME, type CornerDotStyle, type CornerSquareStyle } from '$lib/styled';
 	import { LOOKS, type LookId } from '$lib/looks';
+	import { PALETTES, PALETTE_BG, paletteFor, type Palette } from '$lib/palettes';
+	import { TEMPLATES, applyTemplate, templateFor } from '$lib/templates';
 	import ColourField from '$lib/components/ColourField.svelte';
 	import QrArt from '$lib/components/QrArt.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import Slider from '$lib/components/Slider.svelte';
 	import Swatches from '$lib/components/Swatches.svelte';
+	import { radioKeys } from '$lib/components/radiogroup';
 	import type { Design } from './state.svelte';
+	import { DOTS, styleSummary } from './summaries';
 
-	let { design, open = false, advanced = false }: { design: Design; open?: boolean; advanced?: boolean } = $props();
+	let {
+		design,
+		open = false,
+		advanced = false,
+		tabbed = false
+	}: {
+		design: Design;
+		open?: boolean;
+		advanced?: boolean;
+		/** Under a tab list: no header, and the body shows exactly while `open` is true. */
+		tabbed?: boolean;
+	} = $props();
 
 	/**
 	 * The panel's own open state. It is deliberately not an attribute driven straight off the
@@ -20,14 +35,11 @@
 	 * effect and slammed the panel shut. SectionHeader owns a plain boolean instead.
 	 */
 	let panelOpen = $state(untrack(() => open));
-
-	const dots: { id: DotStyle; label: string }[] = [
-		{ id: 'square', label: 'Square' },
-		{ id: 'rounded', label: 'Rounded' },
-		{ id: 'dots', label: 'Dots' },
-		{ id: 'classy', label: 'Leaf' },
-		{ id: 'extra-rounded', label: 'Soft' }
-	];
+	/**
+	 * Tabbed, the parent's tab decides and it is read live, never latched into `panelOpen`: a tab
+	 * that was shown once and then left must hide again.
+	 */
+	const shown = $derived(tabbed ? open : panelOpen);
 	/**
 	 * One vocabulary across both corner rows. The old labels had "Round" sitting beside "Rounded"
 	 * in two adjacent controls, which was a guessing game.
@@ -79,41 +91,48 @@
 	);
 
 	/**
-	 * What the panel says about itself when it is folded away, so nothing is hidden by folding.
-	 * It keeps reporting the style settings while a photo is in force, because they come back the
-	 * moment the photo is removed.
+	 * What the folded header says, so nothing is hidden by folding. It keeps reporting the style
+	 * settings while a picture is in force, because they come back the moment it is removed. The
+	 * words themselves are `styleSummary`, shared with the tab list; only the untabbed header
+	 * adds that the group is switched off.
 	 */
-	const summary = $derived.by(() => {
-		const parts: string[] = [];
-		if (off) parts.push('Off: photo');
-		const look = LOOKS.find((l) => l.id === design.look);
-		if (look) {
-			if (look.id !== 'classic') parts.push(look.label);
-		} else {
-			const dot = dots.find((d) => d.id === design.dot);
-			if (dot && design.dot !== 'square') parts.push(dot.label);
-			if (design.cornerSquare !== 'square' || design.cornerDot !== 'square') parts.push('Corners');
-		}
-		if (design.gradient !== 'none') parts.push('Gradient');
-		if (design.fg !== '#000000' || design.cornerColor !== null || (design.bg !== '#ffffff' && !design.transparentBg)) parts.push('Colour');
-		if (design.transparentBg) parts.push('Transparent');
-		if (design.frameEnabled) parts.push('Frame');
-		return parts.join(' · ');
-	});
+	const headerSummary = $derived([off ? 'Off: Artistic QR' : '', styleSummary(design)].filter(Boolean).join(' · '));
+
+	/** The palette whose colours are in force (its code colour, white paper, corners following), or none. */
+	const palette = $derived(paletteFor(design.fg, design.bg, design.cornerColor));
+	/**
+	 * The template whose fields the design equals, or none: matched, never stored, like the preset
+	 * below it. The tile's tooltip carries the full name; its caption is the short one.
+	 */
+	const template = $derived(templateFor(design));
+	const templateTiles = TEMPLATES.map((t) => ({ id: t.id, label: t.label, title: t.name }));
+	function pickTemplate(id: string) {
+		const t = TEMPLATES.find((x) => x.id === id);
+		if (t) applyTemplate(design, t);
+	}
+
+	/** A palette is a whole colour scheme: code colour, white paper, corners back to following the code. */
+	function pickPalette(p: Palette) {
+		design.fg = p.fg;
+		design.bg = PALETTE_BG;
+		design.cornerColor = null;
+	}
 
 </script>
 
-<SectionHeader
-	title="Style"
-	collapsible
-	bind:open={panelOpen}
-	{summary}
-	controls="style-body"
-	onopen={preloadStyled}
-/>
+{#if !tabbed}
+	<SectionHeader
+		title="Style"
+		collapsible
+		bind:open={panelOpen}
+		summary={headerSummary}
+		controls="style-body"
+		onopen={preloadStyled}
+	/>
+{/if}
 
-{#if panelOpen}
-	<div id="style-body" class="mt-4 grid gap-5">
+{#if shown}
+	<div id="style-body" class="{tabbed ? '' : 'mt-4'} grid gap-5">
 		{#if off}
 			<p class="notice notice-info">
 				Code and Background still apply: they colour the picture's dots and its paper. The shapes, corner colour, fill,
@@ -122,30 +141,49 @@
 			</p>
 		{/if}
 
+		<!-- A template sets shapes and a frame, which Artistic QR replaces, so its tiles go dark with them
+		     while the colours below stay live. It is first because it is the one choice that makes the
+		     rest optional. -->
+		<div class="grid gap-3 transition-opacity {off ? 'opacity-40 select-none' : ''}">
+			<p class="subhead">Template</p>
+			<Swatches
+				options={templateTiles}
+				bind:value={() => template?.id ?? 'custom', pickTemplate}
+				columns={6}
+				ariaLabel="Template"
+				disabled={off}
+			>
+				{#snippet draw(id)}{@const t = TEMPLATES.find((x) => x.id === id)}{#if t}<QrArt kind="template" template={t} />{/if}{/snippet}
+			</Swatches>
+		</div>
+
 		<!-- Code and Background are the only two settings that mean the same thing whichever renderer
 		     is in charge, so they sit outside the fieldset a photo disables. They used to be inside
 		     it, which left them governing the Artistic QR output while greyed out and unreachable: a
 		     code coloured as one end of a gradient could not be taken back without removing the
-		     picture first. Everything below the fieldset really is dropped by the halftone renderer. -->
+		     picture first. Everything below the fieldset really is dropped by the halftone renderer.
+		     The palette row sets exactly these two (and clears the corner colour), so it lives here. -->
 		<div class="grid gap-3">
-				<p class="subhead">
-					Colours
-					<span class="subhead-end">
-						<span
-							class="badge {contrast >= 4 ? 'badge-ok' : 'badge-warn'}"
-							title="Contrast ratio, WCAG formula. Scanners read with red light, so keep it high."
-						>
-							{contrastLabel}
-						</span>
+			<p class="subhead">
+				Colours
+				<span class="subhead-end">
+					<span
+						class="badge {contrast >= 4 ? 'badge-ok' : 'badge-warn'}"
+						title="Contrast ratio, WCAG formula. Scanners read with red light, so keep it high."
+					>
+						{contrastLabel}
 					</span>
-				</p>
-				<!-- Side by side except in the lg band, where the column is ~306 px and a "#000000"
-				     field loses its last character. -->
-				<div class="grid grid-cols-2 gap-3 lg:grid-cols-1 xl:grid-cols-2">
-					<ColourField label="Code" bind:value={design.fg} {related} />
-					<!-- Transparent is not available to a photo, so it does not lock the field there. -->
-					<ColourField label="Background" bind:value={design.bg} disabled={design.transparentBg && !off} {related} />
-					<!-- The corners follow the code colour until one is chosen; the link puts them back. -->
+				</span>
+			</p>
+			<!-- Side by side except in the lg band, where the column is ~306 px and a "#000000"
+			     field loses its last character. -->
+			<div class="grid grid-cols-2 gap-3 lg:grid-cols-1 xl:grid-cols-2">
+				<ColourField label="Code" bind:value={design.fg} {related} />
+				<!-- Transparent is not available to a photo, so it does not lock the field there. -->
+				<ColourField label="Background" bind:value={design.bg} disabled={design.transparentBg && !off} {related} />
+				{#if advanced}
+					<!-- The corners follow the code colour until one is chosen; the link puts them back. Basic
+					     has no corner colour of its own: it is rare, and `advancedInUse` says when one is set. -->
 					<ColourField label="Corners" bind:value={design.cornerFg} disabled={off} {related}>
 						{#snippet end()}
 							{#if design.cornerColor !== null}
@@ -155,16 +193,39 @@
 							{/if}
 						{/snippet}
 					</ColourField>
-				</div>
+				{/if}
 			</div>
+			<!-- Six ready code colours, each on white paper. Advanced only: in Basic the Template row
+			     above already offers whole colour schemes, and a third row of pickers between it and
+			     Preset was one too many. Roving tabindex: Tab lands on the chosen dot, or the first
+			     when the colours are anyone's own. -->
+			{#if advanced}
+			<div class="palette" role="radiogroup" aria-label="Palette" use:radioKeys>
+				{#each PALETTES as p, i (p.id)}
+					<button
+						type="button"
+						class="palette-dot"
+						role="radio"
+						aria-checked={palette?.id === p.id}
+						aria-label={p.name}
+						title={p.name}
+						tabindex={palette?.id === p.id || (i === 0 && !palette) ? 0 : -1}
+						data-on={palette?.id === p.id}
+						style="--dot: {p.fg}"
+						onclick={() => pickPalette(p)}
+					></button>
+				{/each}
+			</div>
+			{/if}
+		</div>
 
 		<fieldset
 			disabled={off}
 			aria-disabled={off}
 			class="m-0 grid min-w-0 gap-5 border-0 p-0 transition-opacity {off ? 'opacity-40 select-none' : ''}"
 		>
-			<div class="grid gap-3">
-				{#if advanced}
+			{#if advanced}
+				<div class="grid gap-3">
 					<label class="toggle">
 						<input type="checkbox" role="switch" bind:checked={design.transparentBg} />
 						Transparent background
@@ -197,19 +258,20 @@
 							<p class="hint">Gradients print as RGB. Keep both ends dark so every module keeps contrast with the background.</p>
 						{/if}
 					</div>
-				{/if}
-			</div>
+				</div>
+			{/if}
 
-			<!-- Shape -->
+			<!-- Preset in Basic, Shape in Advanced. The subhead is the group's name, so Basic's one row
+			     takes it and carries no label of its own; Advanced's four rows each keep theirs. -->
 			<div class="grid gap-3">
-				<p class="subhead">Shape</p>
+				<p class="subhead">{advanced ? 'Shape' : 'Preset'}</p>
 				<!-- One preset tile sets all three shapes; Advanced can then adjust each below, and a
 				     hand-made combination leaves no tile selected. (Code and docs call a preset a "look".) -->
-				<Swatches label="Preset" options={looks} bind:value={design.look} columns={5} ariaLabel="Preset">
+				<Swatches label={advanced ? 'Preset' : undefined} options={looks} bind:value={design.look} columns={5} ariaLabel="Preset">
 					{#snippet draw(id)}{#if id !== 'custom'}<QrArt kind="look" style={id} />{/if}{/snippet}
 				</Swatches>
 				{#if advanced}
-					<Swatches label="Modules" options={dots} bind:value={design.dot} columns={5} ariaLabel="Module shape">
+					<Swatches label="Modules" options={DOTS} bind:value={design.dot} columns={5} ariaLabel="Module shape">
 						{#snippet draw(id)}<QrArt kind="modules" style={id} />{/snippet}
 					</Swatches>
 					<Swatches label="Corner frames" options={cornerSquares} bind:value={design.cornerSquare} columns={4} ariaLabel="Corner frame shape">
@@ -221,12 +283,12 @@
 				{/if}
 			</div>
 
-			<!-- Frame -->
+			<!-- Frame: a subhead over a lone switch would be a label under a label, so Basic goes without. -->
 			<div class="grid gap-3">
-				<p class="subhead">Frame</p>
+				{#if advanced}<p class="subhead">Frame</p>{/if}
 				<label class="toggle">
 					<input type="checkbox" role="switch" bind:checked={design.frameEnabled} />
-					Call to action under the code
+					Frame with a call to action
 				</label>
 				{#if design.frameEnabled}
 					<div class="grid gap-3">

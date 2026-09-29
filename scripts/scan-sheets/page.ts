@@ -37,6 +37,7 @@ import { GLYPHS, glyphDataUrl } from '../../apps/site/src/lib/glyphs';
 import { LOGO_ICONS, logoIconDataUrl } from '../../apps/site/src/lib/logo-icons';
 import { LOOKS, type LookId } from '../../apps/site/src/lib/looks';
 import { SIZE_TIERS } from '../../apps/site/src/lib/generator/sizes';
+import { TEMPLATES, DEFAULT_FRAME_TEXT } from '../../apps/site/src/lib/templates';
 
 // ---------------------------------------------------------------------------------------------
 // What goes on the sheets. IDs match the tables in docs/scan-matrix.md; keep the two in step.
@@ -67,6 +68,8 @@ interface StyledSpec {
 	fg?: string;
 	bg?: string;
 	gradientTo?: string;
+	/** The finder patterns' own colour; they follow `fg` when unset. */
+	cornerColor?: string;
 	logo?: LogoPicture;
 	/**
 	 * Logo width as a fraction of the code's width; the reachable widths are a staircase.
@@ -79,6 +82,9 @@ interface StyledSpec {
 	/** The part of the picture that goes in the code, as the Logo panel's crop box sets it; the hole follows its shape. */
 	logoCrop?: CropRect;
 	frame?: string;
+	/** The frame's band and its words; black and white when unset, as the generator opens. */
+	frameColor?: string;
+	frameTextColor?: string;
 }
 interface HalftoneSpec {
 	kind: 'halftone';
@@ -325,6 +331,28 @@ const SECTIONS: Section[] = [
 			styled('N3', 30, 'Calendar icon, navy, Rounded · 30 mm', 'rounded', { ecc: 'H', fg: '#1a3d8f', logo: { icon: 'calendar' }, logoWidth: 0.2, logoKnockout: true }),
 			styled('N4', 20, 'Calendar icon · 20 mm', 'classic', { ecc: 'H', logo: { icon: 'calendar' }, logoWidth: 0.2, logoKnockout: true })
 		]
+	},
+	{
+		code: 'T',
+		title: 'Templates',
+		watch:
+			'The six one-tap designs in the Style tab, built from the site\'s own list (lib/templates.ts), so the sheet and the tiles cannot disagree. Each is a look, a code colour on its paper, sometimes a corner colour, and sometimes a frame, at 30 mm with no logo: the size rows B and E use. The question is what a colour pair costs on paper that a screen does not show: T3 has brown corners on a cream tint, T5 a lilac tint, T6 a black frame.',
+		items: TEMPLATES.map((t, i) =>
+			styled(
+				`T${i + 1}`,
+				30,
+				`${t.name} · ${t.fg}${t.cornerColor ? ` corners ${t.cornerColor}` : ''}${t.bg !== '#ffffff' ? ` on ${t.bg}` : ''} · 30 mm`,
+				t.look,
+				{
+					fg: t.fg,
+					bg: t.bg,
+					cornerColor: t.cornerColor ?? undefined,
+					frame: t.frameEnabled ? (t.frameText ?? DEFAULT_FRAME_TEXT) : undefined,
+					frameColor: t.frameColor,
+					frameTextColor: t.frameTextColor
+				}
+			)
+		)
 	}
 ];
 
@@ -510,6 +538,7 @@ async function renderItem(item: Item, pictures: Pictures): Promise<Rendered> {
 			quietZone: QUIET,
 			fg: spec.fg ?? '#000000',
 			bg: spec.bg ?? '#ffffff',
+			cornerColor: spec.cornerColor,
 			dot: look.dot,
 			cornerSquare: look.cornerSquare,
 			cornerDot: look.cornerDot,
@@ -522,7 +551,7 @@ async function renderItem(item: Item, pictures: Pictures): Promise<Rendered> {
 			logoCoefficient: fit?.coefficient ?? 0,
 			logoKnockout: spec.logoKnockout ?? true,
 			logoMargin: 1,
-			frame: { enabled: !!spec.frame, text: spec.frame ?? '', color: '#000000', textColor: '#ffffff' }
+			frame: { enabled: !!spec.frame, text: spec.frame ?? '', color: spec.frameColor ?? '#000000', textColor: spec.frameTextColor ?? '#ffffff' }
 		};
 		const result = await renderStyled(opts, item.mm);
 		const total = result.size + 2 * QUIET;

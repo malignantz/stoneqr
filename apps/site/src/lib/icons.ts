@@ -18,6 +18,8 @@ export const ICONS = {
 	reset: '<path d="M13 8a5 5 0 1 1-1.6-3.7"/><path d="M13.2 2v3h-3"/>',
 	dropper:
 		'<path d="M9.5 3.5l3 3"/><path d="M11 2l3 3-1.5 1.5-3-3z"/><path d="M9.5 5L3 11.5V13h1.5L11 6.5z"/>',
+	// Three dots, each a zero-length stroke: draw it with a heavier `width` (2.4 or so) so they read as dots.
+	more: '<path d="M3 8h.01"/><path d="M8 8h.01"/><path d="M13 8h.01"/>',
 
 	// Content types, in PAYLOAD_TYPES order
 	url: '<path d="M6.5 9.5a2.5 2.5 0 0 0 3.5 0l2-2a2.5 2.5 0 0 0-3.5-3.5l-.6.6"/><path d="M9.5 6.5a2.5 2.5 0 0 0-3.5 0l-2 2a2.5 2.5 0 0 0 3.5 3.5l.6-.6"/>',
@@ -31,7 +33,10 @@ export const ICONS = {
 	tel: '<path d="M5.5 2.5l2 2.5-1.5 1.5a8 8 0 0 0 3.5 3.5L11 8.5l2.5 2-1.5 2c-3.5.6-8.6-4.5-8-8z"/>',
 	geo: '<path d="M8 14s4.5-4.3 4.5-7.5a4.5 4.5 0 1 0-9 0C3.5 9.7 8 14 8 14z"/><circle cx="8" cy="6.5" r="1.7"/>',
 	event:
-		'<rect x="2" y="3.5" width="12" height="10" rx="1.5"/><path d="M2 6.5h12"/><path d="M5.5 2v2.5"/><path d="M10.5 2v2.5"/>'
+		'<rect x="2" y="3.5" width="12" height="10" rx="1.5"/><path d="M2 6.5h12"/><path d="M5.5 2v2.5"/><path d="M10.5 2v2.5"/>',
+	// A rounded-rectangle speech bubble with a handset in it: generic, deliberately not WhatsApp's round mark.
+	whatsapp:
+		'<path d="M4.5 2h7A2.5 2.5 0 0 1 14 4.5v4a2.5 2.5 0 0 1-2.5 2.5H8l-3 3v-3h-.5A2.5 2.5 0 0 1 2 8.5v-4A2.5 2.5 0 0 1 4.5 2z"/><path d="M6.5 4l1 1.25-.75.75a4 4 0 0 0 1.75 1.75l.75-.75 1.25 1-.75 1c-1.75.3-4.3-2.25-4-4z"/>'
 } as const;
 
 export type IconName = keyof typeof ICONS;

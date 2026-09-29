@@ -1,6 +1,6 @@
 # StoneQR
 
-> Free, open-source (MIT) QR code generator that runs entirely in the browser. Codes are computed on the user's device, never uploaded, and cannot expire or be deactivated. Built for print: vector SVG, PDF (CMYK), and EPS exports with real millimetre dimensions, a print-size and scan-distance calculator, logos in the middle with a coverage cap, artistic QR codes (a photo blended through the whole code), bulk generation with Avery label sheets, and a decode check before every download.
+> Free, open-source (MIT) QR code generator that runs entirely in the browser. Codes are computed on the user's device, never uploaded, and cannot expire or be deactivated. Built for print: SVG exports, PDF (100% K black for the plain style), and EPS (in Advanced) with real millimetre dimensions, a print-size and scan-distance calculator, logos in the middle with a coverage cap, artistic QR codes (a photo blended through the whole code), bulk generation with Avery label sheets, and a decode check before every download.
 
 Site: https://stoneqr.app · Source: https://github.com/malignantz/stoneqr · Privacy: nothing typed leaves the browser.
 

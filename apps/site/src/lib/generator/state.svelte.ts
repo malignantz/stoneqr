@@ -24,19 +24,23 @@ import type { CornerDotStyle, CornerSquareStyle, DotStyle, GradientKind } from '
 import { fitLogo, LOGO_WIDTH_DEFAULT, NO_LOGO } from '$lib/logo-size';
 import { cropAspect, normaliseCrop } from '$lib/logo-crop';
 import { LOOKS, lookFor, type LookId } from '$lib/looks';
+import { cornerColourIsAdvanced } from '$lib/templates';
 import { weakestForeground } from './contrast';
+import { hasCampaign, withCampaign } from './campaign';
 
 export interface Fields {
-	url: { url: string };
+	/** The three `utm` fields are campaign tags (Advanced); `campaign.ts` writes them onto the address. */
+	url: { url: string; utmSource: string; utmMedium: string; utmCampaign: string };
 	text: { text: string };
 	wifi: { ssid: string; password: string; auth: 'WPA' | 'WEP' | 'nopass'; hidden: boolean };
 	vcard: VcardFields;
 	mecard: VcardFields;
-	email: { to: string; subject: string; body: string };
+	email: { to: string; subject: string; body: string; cc: string; bcc: string };
 	sms: { to: string; body: string; scheme: 'sms' | 'smsto' };
 	tel: { number: string };
 	geo: { lat: string; lng: string; query: string };
 	event: { summary: string; start: string; end: string; location: string; description: string; allDay: boolean };
+	whatsapp: { number: string; text: string };
 }
 export interface VcardFields {
 	firstName: string;
@@ -70,16 +74,17 @@ export function defaultFields(): Fields {
 	};
 	const end = new Date(now.getTime() + 60 * 60 * 1000);
 	return {
-		url: { url: '' },
+		url: { url: '', utmSource: '', utmMedium: '', utmCampaign: '' },
 		text: { text: '' },
 		wifi: { ssid: '', password: '', auth: 'WPA', hidden: false },
 		vcard: emptyVcard(),
 		mecard: emptyVcard(),
-		email: { to: '', subject: '', body: '' },
+		email: { to: '', subject: '', body: '', cc: '', bcc: '' },
 		sms: { to: '', body: '', scheme: 'sms' },
 		tel: { number: '' },
 		geo: { lat: '', lng: '', query: '' },
-		event: { summary: '', start: toLocal(now), end: toLocal(end), location: '', description: '', allDay: false }
+		event: { summary: '', start: toLocal(now), end: toLocal(end), location: '', description: '', allDay: false },
+		whatsapp: { number: '', text: '' }
 	};
 }
 
@@ -262,26 +267,39 @@ export class Design {
 	halftoneOverridesStyle = $derived(this.halftoneActive && this.styleRequested);
 
 	/**
-	 * Settings only the Advanced controls expose, in plain words, so Basic mode can say they are
-	 * still in force rather than silently applying them.
+	 * Settings only the Advanced controls expose, in the words those controls use, so Basic mode
+	 * can say they are still in force rather than silently applying them and a person sent to
+	 * Advanced by the notice can find each one by name.
 	 */
 	advancedInUse = $derived.by((): string[] => {
 		const out: string[] = [];
 		if (this.halftoneActive) {
-			if (this.halftoneDotScale !== 0.4) out.push('photo dot size');
-			if (this.halftoneDim !== 0) out.push('photo fade');
-			if (this.halftoneContrast !== 1) out.push('photo contrast');
+			if (this.halftoneDotScale !== 0.4) out.push('Artistic QR dot size');
+			if (this.halftoneDim !== 0) out.push('Artistic QR fade');
+			if (this.halftoneContrast !== 1) out.push('Artistic QR contrast');
 		}
+		// MeCard is a format under the Contact tile that only Advanced offers.
+		if (this.type === 'mecard') out.push('MeCard contact format');
+		if (this.type === 'email' && (this.fields.email.cc.trim() || this.fields.email.bcc.trim())) out.push('email cc or bcc');
+		if (this.type === 'url' && hasCampaign(this.fields.url)) out.push('campaign tags');
 		if (this.transparentBg) out.push('transparent background');
-		// Basic can set corner shapes through a look; only a hand-made combination is Advanced's alone.
-		if (this.look === 'custom' && (this.cornerSquare !== 'square' || this.cornerDot !== 'square')) out.push('corner shapes');
-		if (this.gradient !== 'none') out.push('gradient');
-		if (this.scanDistanceM) out.push('scan distance');
+		// Basic sets shapes through a look, so only a hand-made combination is Advanced's alone. No
+		// look pairs a shaped module with square corners, so that combination is custom too, and the
+		// Modules row is where it was set.
+		if (this.look === 'custom') {
+			if (this.dot !== 'square') out.push('module shape');
+			if (this.cornerSquare !== 'square' || this.cornerDot !== 'square') out.push('corner frames and dots');
+		}
+		// Likewise a corner colour chosen through a template tile ("Forest dots with copper corners")
+		// was set in Basic; only one that matches no template is Advanced's alone.
+		if (cornerColourIsAdvanced(this)) out.push('corner colour');
+		if (this.gradient !== 'none') out.push('gradient fill');
+		if (this.scanDistanceM) out.push('read-from distance');
 		if (this.eccChoice !== 'M' && !this.logo && !this.halftoneActive) out.push(`error correction ${this.eccChoice}`);
 		if (this.quietZone !== 4) out.push('quiet zone');
 		if (this.minVersion !== 1) out.push('minimum version');
 		if (this.mask !== 'auto') out.push('mask pattern');
-		if (this.dpi !== 300) out.push('PNG resolution');
+		if (this.dpi !== 300) out.push('PNG detail');
 		return out;
 	});
 
@@ -404,7 +422,7 @@ export function describe(type: PayloadType): string {
 	return (
 		{
 			url: 'link', text: 'text', wifi: 'WiFi network', vcard: 'contact card', mecard: 'contact card',
-			email: 'email', sms: 'text message', tel: 'phone number', geo: 'location', event: 'calendar event'
+			email: 'email', sms: 'text message', tel: 'phone number', geo: 'location', event: 'calendar event', whatsapp: 'WhatsApp chat'
 		} as Record<PayloadType, string>
 	)[type];
 }
@@ -423,7 +441,7 @@ export function buildPayload(type: PayloadType, f: Fields, shortUrl: string | nu
 	try {
 		switch (type) {
 			case 'url':
-				return f.url.url.trim() ? ok(payloads.url(f.url.url)) : empty;
+				return f.url.url.trim() ? ok(withCampaign(payloads.url(f.url.url), f.url)) : empty;
 			case 'text':
 				return f.text.text.trim() ? ok(payloads.text(f.text.text)) : empty;
 			case 'wifi': {
@@ -439,9 +457,11 @@ export function buildPayload(type: PayloadType, f: Fields, shortUrl: string | nu
 			case 'mecard':
 				return f.mecard.firstName.trim() || f.mecard.lastName.trim() ? ok(payloads.mecard(clean(f.mecard))) : empty;
 			case 'email':
-				return f.email.to.trim() ? ok(payloads.mailto({ to: f.email.to, subject: f.email.subject || undefined, body: f.email.body || undefined })) : empty;
+				return f.email.to.trim() ? ok(payloads.mailto({ to: f.email.to, subject: f.email.subject || undefined, body: f.email.body || undefined, cc: f.email.cc || undefined, bcc: f.email.bcc || undefined })) : empty;
 			case 'sms':
 				return f.sms.to.trim() ? ok(payloads.sms({ to: f.sms.to, body: f.sms.body || undefined, scheme: f.sms.scheme })) : empty;
+			case 'whatsapp':
+				return f.whatsapp.number.trim() ? ok(payloads.whatsapp({ number: f.whatsapp.number, text: f.whatsapp.text || undefined })) : empty;
 			case 'tel':
 				return f.tel.number.trim() ? ok(payloads.tel(f.tel.number)) : empty;
 			case 'geo': {

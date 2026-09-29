@@ -5,7 +5,7 @@ import type { Saved } from '$lib/generator/persist';
 import { GLYPHS, glyphDataUrl, glyphName } from '$lib/glyphs';
 import { LOGO_ICONS, logoIconDataUrl, logoIconName } from '$lib/logo-icons';
 
-const record: Saved = { v: 1, fg: '#123456', fields: { url: { url: 'https://example.com/menu' } } };
+const record: Saved = { v: 1, fg: '#123456', fields: { url: { url: 'https://example.com/menu', utmSource: '', utmMedium: '', utmCampaign: '' } } };
 
 describe('saved designs', () => {
 	it('suggests a name from what was typed', () => {

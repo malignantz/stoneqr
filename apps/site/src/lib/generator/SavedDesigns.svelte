@@ -38,7 +38,7 @@
 
 	const LABEL: Record<PayloadType, string> = {
 		url: 'Website', text: 'Text', wifi: 'WiFi', vcard: 'Contact', mecard: 'Contact',
-		email: 'Email', sms: 'Message', tel: 'Phone number', geo: 'Location', event: 'Event'
+		email: 'Email', sms: 'Message', tel: 'Phone number', geo: 'Location', event: 'Event', whatsapp: 'WhatsApp'
 	};
 
 	let dialog = $state<HTMLDialogElement>();

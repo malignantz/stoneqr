@@ -303,7 +303,10 @@
 
 	<div class="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-8">
 		<!-- ------------------------------------------------------------- input -->
-		<section class="sheet grid gap-5 p-5 sm:p-6" aria-labelledby="input-heading">
+		<!-- content-start: the two cards share a grid row, so this one is stretched to the taller
+		     Encoding card, and a grid container spreads its spare height across its auto rows,
+		     which put about 70 px of air above and below the field. Rows keep their natural height. -->
+		<section class="sheet grid content-start gap-5 p-5 sm:p-6" aria-labelledby="input-heading">
 			<SectionHeader title="The list" id="input-heading">
 				{#snippet badge()}
 				<div class="seg" role="group" aria-label="Where the list comes from">

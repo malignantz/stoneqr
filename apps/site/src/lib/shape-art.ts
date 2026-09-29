@@ -99,3 +99,24 @@ export function cornerDotPath(style: CornerDotStyle): string {
 	};
 	return roundedRect(2, 2, 3, 3, r[style]);
 }
+
+/**
+ * Where a template tile's picture puts things, in a 16 × 16 box. The tile is a small piece of
+ * paper in the template's own colours with the look's corner and patch on it (drawn by
+ * `QrArt`, the same picture a look tile has, at `content`'s scale), and, for a framed template,
+ * the call-to-action frame around it in the proportions of `FRAME` in `styled.ts`: a 4% edge
+ * and a 17% band, so the artwork is 8% wider and 21% taller than the code. The words are a
+ * bar, because text at 46 px is a smudge.
+ */
+export const TEMPLATE_ART = {
+	plain: {
+		paper: { x: 0.5, y: 0.5, w: 15, h: 15, r: 1 },
+		content: { x: 1.62, y: 1.62, scale: 1.1 }
+	},
+	framed: {
+		outer: { x: 1.4, y: 0.6, w: 13.2, h: 14.8, r: 0.55 },
+		paper: { x: 1.89, y: 1.09, w: 12.22, h: 12.22 },
+		content: { x: 2.6, y: 1.8, scale: 0.93 },
+		bar: { x: 5, y: 13.85, w: 6, h: 1, r: 0.5 }
+	}
+} as const;

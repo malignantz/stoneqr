@@ -209,3 +209,73 @@ describe('address links', () => {
 		expect(buildPayload(d.type, d.fields, d.shortUrl).payload).toBe('https://signupcity.app/s/bcdf6789');
 	});
 });
+
+describe('fields added for email copies, campaign tags, and WhatsApp', () => {
+	it('round-trips cc and bcc, in a snapshot and through a share link', async () => {
+		const a = fake();
+		a.type = 'email';
+		a.fields.email = { to: 'rsvp@example.com', subject: 'Hi', body: '', cc: 'a@example.com', bcc: 'b@example.com' };
+		const b = fake();
+		expect(apply(b, snapshot(a))).toBe(true);
+		expect(b.fields.email).toEqual(a.fields.email);
+		const saved = compact(snapshot(a), snapshot(fake()));
+		expect(saved.fields).toEqual({ email: { to: 'rsvp@example.com', subject: 'Hi', cc: 'a@example.com', bcc: 'b@example.com' } });
+		const c = fake();
+		expect(apply(c, await decodeHash(await encodeHash(saved)))).toBe(true);
+		expect(buildPayload(c.type, c.fields, null).payload).toBe('mailto:rsvp@example.com?subject=Hi&cc=a@example.com&bcc=b@example.com');
+	});
+
+	it('round-trips campaign tags and writes them onto the address', () => {
+		const a = fake();
+		a.fields.url = { url: 'example.com/menu#top', utmSource: 'poster', utmMedium: 'print', utmCampaign: 'spring' };
+		const b = fake();
+		expect(apply(b, compact(snapshot(a), snapshot(fake())))).toBe(true);
+		expect(b.fields.url).toEqual(a.fields.url);
+		expect(buildPayload(b.type, b.fields, null).payload).toBe('https://example.com/menu?utm_source=poster&utm_medium=print&utm_campaign=spring#top');
+	});
+
+	it('round-trips the WhatsApp type and its fields', async () => {
+		const a = fake();
+		a.type = 'whatsapp';
+		a.fields.whatsapp = { number: '+44 7700 900123', text: 'Hello there' };
+		const saved = compact(snapshot(a), snapshot(fake()));
+		expect(saved.type).toBe('whatsapp');
+		const b = fake();
+		expect(apply(b, await decodeHash(await encodeHash(saved)))).toBe(true);
+		expect(b.type).toBe('whatsapp');
+		expect(b.fields.whatsapp).toEqual({ number: '+44 7700 900123', text: 'Hello there' });
+		expect(buildPayload(b.type, b.fields, null).payload).toBe('https://wa.me/447700900123?text=Hello%20there');
+	});
+
+	it('says what to type when the number cannot be used, and stays empty until there is one', () => {
+		const f = defaultFields();
+		expect(buildPayload('whatsapp', f, null).empty).toBe(true);
+		f.whatsapp.number = '07700 900123';
+		const r = buildPayload('whatsapp', f, null);
+		expect(r.empty).toBe(false);
+		expect(r.payload).toBe('');
+		expect(r.error).toMatch(/country code/);
+	});
+
+	it('still applies a record from before these fields existed', () => {
+		const old = {
+			v: 1,
+			type: 'email',
+			fields: { url: { url: 'https://example.com' }, email: { to: 'a@example.com', subject: 'Hi', body: '' } }
+		} as unknown as Saved;
+		const b = fake();
+		expect(apply(b, old)).toBe(true);
+		expect(b.type).toBe('email');
+		expect(b.fields.email).toEqual({ to: 'a@example.com', subject: 'Hi', body: '', cc: '', bcc: '' });
+		expect(b.fields.url).toEqual({ url: 'https://example.com', utmSource: '', utmMedium: '', utmCampaign: '' });
+		expect(b.fields.whatsapp).toEqual({ number: '', text: '' });
+		expect(buildPayload('url', b.fields, null).payload).toBe('https://example.com');
+	});
+
+	it('refuses tags of the wrong shape', () => {
+		const b = fake();
+		expect(apply(b, { v: 1, fields: { url: { url: 'https://example.com', utmSource: 7 }, email: { cc: ['x'] } } } as unknown as Saved)).toBe(true);
+		expect(b.fields.url.utmSource).toBe('');
+		expect(b.fields.email.cc).toBe('');
+	});
+});

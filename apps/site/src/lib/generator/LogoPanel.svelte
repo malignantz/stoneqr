@@ -5,8 +5,9 @@
 	 * It used to be the third group inside Style, which starts folded, while the Artistic QR panel
 	 * below it offered to "blend a photo or a logo". Someone with a logo in hand read the only
 	 * heading that mentioned one and got a halftone. The logo is the customisation most people
-	 * arrive for, so it is its own panel, first in the column and open from the start; its empty
-	 * state is one drop tile, which costs almost nothing to show.
+	 * arrive for, so it is its own panel (under the shell's tab list, its own tab, always in view
+	 * and marked when a logo is set); its empty state is one drop tile, which costs almost nothing
+	 * to show.
 	 */
 	import { untrack } from 'svelte';
 	import { LOGO_BLOCK_COVER, LOGO_WARN_COVER } from '@stoneqr/engine';
@@ -21,11 +22,28 @@
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import Slider from '$lib/components/Slider.svelte';
 	import type { Design } from './state.svelte';
+	import { logoSummary } from './summaries';
 
-	let { design, open = true, advanced = false }: { design: Design; open?: boolean; advanced?: boolean } = $props();
+	let {
+		design,
+		open = true,
+		advanced = false,
+		tabbed = false
+	}: {
+		design: Design;
+		open?: boolean;
+		advanced?: boolean;
+		/** Under a tab list: no header, and the body shows exactly while `open` is true. */
+		tabbed?: boolean;
+	} = $props();
 
 	/** The panel's own open state; see SectionHeader for why it is not bound straight to the prop. */
 	let panelOpen = $state(untrack(() => open));
+	/**
+	 * Tabbed, the parent's tab decides and it is read live. Everything below this in the script,
+	 * the icon-follows-the-code-colour effect above all, runs whether or not the body is shown.
+	 */
+	const shown = $derived(tabbed ? open : panelOpen);
 
 	/** An Artistic QR picture owns the whole code, so there is no middle for a logo while it is on. */
 	const off = $derived(design.halftoneActive);
@@ -101,13 +119,8 @@
 	const cropChanged = $derived(!isFullCrop(design.logoCrop));
 	const cropModel = freeCropModel(() => design.logoCrop, setCrop);
 
-	/** What the folded panel says, so nothing is hidden by folding. */
-	const summary = $derived.by(() => {
-		if (!design.logo) return '';
-		if (off) return 'Off: Artistic QR';
-		// Painting over the modules is the unusual choice, so a folded panel says so.
-		return [design.logoName, cropChanged ? 'cropped' : '', design.logoKnockout ? '' : 'over modules'].filter(Boolean).join(' · ');
-	});
+	/** What the folded header says, so nothing is hidden by folding: `logoSummary`, or that Artistic QR has switched the logo off. */
+	const headerSummary = $derived(design.logo && off ? 'Off: Artistic QR' : logoSummary(design));
 
 	/**
 	 * A wide wordmark is fitted to the width, so it comes out as a thin strip. The hole follows
@@ -200,10 +213,12 @@
 	}
 </script>
 
-<SectionHeader title="Logo" collapsible bind:open={panelOpen} {summary} controls="logo-body" onopen={preloadStyled} />
+{#if !tabbed}
+	<SectionHeader title="Logo" collapsible bind:open={panelOpen} summary={headerSummary} controls="logo-body" onopen={preloadStyled} />
+{/if}
 
-{#if panelOpen}
-	<div id="logo-body" class="mt-4 grid gap-3">
+{#if shown}
+	<div id="logo-body" class="{tabbed ? '' : 'mt-4'} grid gap-3">
 		{#if off && design.logo}
 			<p class="notice notice-info">
 				<span>
@@ -227,7 +242,7 @@
 		     between them is one click; an uploaded logo hides the row, since Remove comes first. -->
 		{#if !design.logo || icon}
 			<div class="field">
-				<span class="label">{design.logo ? 'Icon' : 'No logo? Use an icon'}</span>
+				<span class="label">Or use an icon</span>
 				<div class="grid grid-cols-6 gap-1.5">
 					{#each LOGO_ICONS as i (i.id)}
 						<button

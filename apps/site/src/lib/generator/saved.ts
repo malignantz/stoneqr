@@ -109,6 +109,9 @@ export function suggestName(type: PayloadType, fields: Fields): string {
 		case 'event':
 			name = first(f.event?.summary);
 			break;
+		case 'whatsapp':
+			name = first(f.whatsapp?.number);
+			break;
 	}
 	return tidyName(name) || LABEL[type];
 }
@@ -123,7 +126,8 @@ const LABEL: Record<PayloadType, string> = {
 	sms: 'Message',
 	tel: 'Phone number',
 	geo: 'Location',
-	event: 'Event'
+	event: 'Event',
+	whatsapp: 'WhatsApp'
 };
 
 /** One line, trimmed, at most MAX_NAME characters. */

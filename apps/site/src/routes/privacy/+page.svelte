@@ -16,10 +16,11 @@
 			Everything you type into StoneQR, including URLs, WiFi passwords, contact details, and
 			uploaded logos, stays in your browser. The site has no server that receives it, no account
 			system, and no database. Downloads are produced on your device. Your current design is kept in your own
-			browser's storage so it is still there when you come back; "Start over" beside the Content heading
+			browser's storage so it is still there when you come back; "Start over" in the design menu (the three dots beside the Content heading)
 			clears it, and so does clearing site data. A "Copy a link to this design" link carries the
 			settings and content in the part of the address after the #, which browsers never send to a
-			server, so it reaches only the people you give it to.
+			server, so it reaches only the people you give it to. The <a href="/scan">QR code reader</a> decodes the
+			picture on your device and keeps nothing: the picture is not uploaded, and neither it nor what it held is stored.
 		</p>
 		<p>
 			The only measurement is Cloudflare Web Analytics, which counts page views without cookies and

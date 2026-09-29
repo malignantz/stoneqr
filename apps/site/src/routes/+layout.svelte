@@ -76,7 +76,7 @@
 </svelte:head>
 
 <div class="flex min-h-dvh flex-col">
-	<!-- Invisible until it has focus: the first Tab press offers a way past the seven nav links. -->
+	<!-- Invisible until it has focus: the first Tab press offers a way past the five nav links. -->
 	<a href="#main" class="skip-link">Skip to content</a>
 	<div aria-live="polite">
 		{#if waiting}
@@ -151,6 +151,7 @@
 					<li><a href="/logo">QR code with logo</a></li>
 					<li><a href="/photo">Artistic QR code</a></li>
 					<li><a href="/print-size">Print size calculator</a></li>
+					<li><a href="/scan">Read a QR code</a></li>
 					<li><a href="/bulk">Bulk and label sheets</a></li>
 				</ul>
 			</div>

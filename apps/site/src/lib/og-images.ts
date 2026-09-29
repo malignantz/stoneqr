@@ -8,6 +8,7 @@ export const OG_IMAGES: ReadonlySet<string> = new Set([
 	'photo',
 	'bulk',
 	'print-size',
+	'scan',
 	'compare',
 	'open-source',
 	'privacy'

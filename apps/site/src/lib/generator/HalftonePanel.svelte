@@ -17,17 +17,23 @@
 	import Slider from '$lib/components/Slider.svelte';
 	import Swatches from '$lib/components/Swatches.svelte';
 	import ToneArt from '$lib/components/ToneArt.svelte';
-	import type { Design, HalftoneTone } from './state.svelte';
+	import type { Design } from './state.svelte';
 	import { pictureFileProblem } from './pictures';
 	import { shapeContrast, SHAPE_CONTRAST_MIN } from './contrast';
+	import { artisticSummary, TONES } from './summaries';
 
-	const TONES: { id: HalftoneTone; label: string }[] = [
-		{ id: 'colour', label: 'Colour' },
-		{ id: 'grey', label: 'Black and white' },
-		{ id: 'silhouette', label: 'Silhouette' }
-	];
-
-	let { design, open = false, advanced = false }: { design: Design; open?: boolean; advanced?: boolean } = $props();
+	let {
+		design,
+		open = false,
+		advanced = false,
+		tabbed = false
+	}: {
+		design: Design;
+		open?: boolean;
+		advanced?: boolean;
+		/** Under a tab list: no header, and the body shows exactly while `open` is true. */
+		tabbed?: boolean;
+	} = $props();
 
 	/**
 	 * The panel's own open state, for the reason spelled out in SectionHeader: an attribute bound
@@ -39,15 +45,14 @@
 	$effect(() => {
 		if (open) panelOpen = true;
 	});
+	/**
+	 * Tabbed, the parent's tab decides and it is read live: a tab that was shown once and then
+	 * left must hide again, which the open-only latch above would never do.
+	 */
+	const shown = $derived(tabbed ? open : panelOpen);
 
-	/** What the panel says about itself when folded, so nothing is hidden by folding. */
-	const summary = $derived.by(() => {
-		if (!design.halftoneImage) return '';
-		const tone = TONES.find((t) => t.id === design.halftoneTone)?.label ?? '';
-		// A shape colour is invisible once the panel is folded, so the summary says it is set.
-		const shape = design.halftone && design.halftoneSilhouette && design.shapeColor !== '#000000' ? 'Shape colour' : '';
-		return [design.halftoneImageName, design.halftone ? tone : 'off', shape].filter(Boolean).join(' · ');
-	});
+	/** What the folded header says, so nothing is hidden by folding: the words are `artisticSummary`, shared with the tab list. */
+	const summary = $derived(artisticSummary(design));
 
 	/** The other colours in this design, offered in the picker's swatch row, as the Style panel does. */
 	const related = $derived(
@@ -131,10 +136,12 @@
 	const pct = (v: number) => `${Math.round(v * 100)}%`;
 </script>
 
-<SectionHeader title="Artistic QR" collapsible bind:open={panelOpen} {summary} controls="photo-body" />
+{#if !tabbed}
+	<SectionHeader title="Artistic QR" collapsible bind:open={panelOpen} {summary} controls="photo-body" />
+{/if}
 
-{#if panelOpen}
-	<div id="photo-body" class="mt-4 grid gap-5">
+{#if shown}
+	<div id="photo-body" class="{tabbed ? '' : 'mt-4'} grid gap-5">
 		<div class="grid gap-3">
 			<p class="subhead">Picture</p>
 			<DropTile
@@ -175,8 +182,9 @@
 					</div>
 				</div>
 				<!-- The two picture panels answer different wishes; the one that sounds like "a picture
-				     in my QR code" to most people is the logo, so this one says where that lives. -->
-				<p class="hint">Just want your logo in the middle of an ordinary code? Use Logo, above.</p>
+				     in my QR code" to most people is the logo, so this one says where that lives. Under
+				     tabs the Logo panel is a tab, not the panel above. -->
+				<p class="hint">Just want your logo in the middle of an ordinary code? Use {tabbed ? 'the Logo tab' : 'Logo, above'}.</p>
 			{/if}
 		</div>
 
@@ -200,8 +208,9 @@
 			</div>
 
 			<div class="grid gap-3">
-				<p class="subhead">Look</p>
-				<Swatches label="Show as" options={TONES} bind:value={design.halftoneTone} columns={3} ariaLabel="Picture tone">
+				<p class="subhead">Tone</p>
+				<!-- No label of its own: the Tone subhead above is the name, and a label under it would say the same thing twice. -->
+				<Swatches options={TONES} bind:value={design.halftoneTone} columns={3} ariaLabel="Picture tone">
 					{#snippet draw(id)}<ToneArt tone={id} />{/snippet}
 				</Swatches>
 
@@ -235,6 +244,9 @@
 					<Slider label="Dot size" bind:value={design.halftoneDotScale} min={0.25} max={0.7} step={0.05} reset={0.4} format={pct} />
 					<Slider label="Fade" bind:value={design.halftoneDim} min={0} max={0.6} step={0.05} reset={0} format={pct} />
 					<Slider label="Contrast" bind:value={design.halftoneContrast} min={0.6} max={1.6} step={0.05} reset={1} format={(v) => `${v.toFixed(2)}×`} />
+				{:else}
+					<!-- Only while a picture is blended in, so the empty state stays short. It names all of what Advanced adds. -->
+					<p class="hint">Advanced adds dot size, fade, contrast, and crop sliders.</p>
 				{/if}
 			</div>
 
@@ -253,11 +265,10 @@
 		<p class="hint">
 			{#if advanced}
 				Error correction is forced to H and the code is enlarged to at least version 7 so the picture shows through.
+				Artistic QR codes download as PNG or SVG.
 			{:else}
-				The code is made larger and sturdier so the picture shows through.
+				Artistic QR downloads as PNG or SVG.
 			{/if}
-			Artistic QR codes download as PNG or SVG.
-			{#if !advanced}Advanced adds dot size, fade, and contrast for a photo that is hard to read in print.{/if}
 		</p>
 	</div>
 {/if}
