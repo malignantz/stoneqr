@@ -23,11 +23,11 @@ const config = {
 			directives: {
 				'default-src': ['self'],
 				// The sha256 is the mode-stamping inline script in app.html; regenerate it if that script changes.
-				'script-src': ['self', 'https://static.cloudflareinsights.com', 'sha256-zd/S3+id9AKhxXpUm1EBy8BKx2Cc+PROi7tBGrONaxQ='],
+				'script-src': ['self', 'https://static.cloudflareinsights.com', 'https://stats.meseeks.xyz', 'sha256-zd/S3+id9AKhxXpUm1EBy8BKx2Cc+PROi7tBGrONaxQ='],
 				'style-src': ['self', 'unsafe-inline'],
 				'img-src': ['self', 'data:', 'blob:'],
 				'font-src': ['self', 'data:'],
-				'connect-src': ['self', 'https://cloudflareinsights.com'],
+				'connect-src': ['self', 'https://cloudflareinsights.com', 'https://stats.meseeks.xyz'],
 				'worker-src': ['self', 'blob:'],
 				'base-uri': ['self'],
 				'form-action': ['self'],
