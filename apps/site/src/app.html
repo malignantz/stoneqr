@@ -21,6 +21,8 @@
 		  both together.
 		-->
 		<script>try{if(localStorage.getItem('stoneqr.mode')==='advanced'){document.documentElement.dataset.mode='advanced';setTimeout(function(){document.documentElement.dataset.hydrated=''},3000)}}catch(e){}</script>
+		<!-- Self-hosted Umami analytics. Its host is in the CSP's script-src and connect-src (svelte.config.js). -->
+		<script defer src="https://stats.meseeks.xyz/kit.js" data-website-id="2befae12-117d-4ab0-ab8a-286920979543"></script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
